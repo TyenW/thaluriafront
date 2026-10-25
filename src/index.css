@@ -210,3 +210,11 @@
 .pulse-arcane {
   animation: arcane-pulse 3s infinite ease-in-out;
 }
+
+/* Mapa: espessura de traço constante em pixels, independente do zoom */
+.mapa-svg path,
+.mapa-svg circle,
+.mapa-svg line,
+.mapa-svg rect {
+  vector-effect: non-scaling-stroke;
+}

@@ -33,10 +33,11 @@ export interface CidadeVisivel {
   geologia?: string;
   aquifero?: string;
   lojas?: number;
-  reino?: string;
-  // Coordenadas percentuais na imagem do mapa
-  mapX?: number;
-  mapY?: number;
+  /**
+   * Só vem preenchido na visão do Mestre: o que os JOGADORES enxergam desta cidade.
+   * (Para o Mestre, `visibilidade` é sempre INFORMACOES_COMPLETAS.)
+   */
+  visibilidadeJogador?: 'OCULTO' | 'ROTA_E_NOME_APENAS' | 'INFORMACOES_COMPLETAS';
 }
 
 export interface RotaConexao {
