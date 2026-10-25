@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
-import { Sparkles, KeyRound, User, AlertCircle, Shield, Crown, HelpCircle } from 'lucide-react';
+import { Sparkles, KeyRound, User, AlertCircle } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -37,12 +37,6 @@ export const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const preencherCredencial = (user: string, pass: string) => {
-    setUsername(user);
-    setSenha(pass);
-    setErro(null);
   };
 
   return (
@@ -122,33 +116,6 @@ export const LoginPage: React.FC = () => {
               Abrir os Portões
             </Button>
           </form>
-
-          {/* Atalhos Rápidos para Contas Padrão */}
-          <div className="mt-7 pt-5 border-t border-linha">
-            <p className="text-[11px] font-cinzel text-nevoa uppercase tracking-wider mb-3 flex items-center justify-center gap-1.5">
-              <HelpCircle className="w-3.5 h-3.5 text-amber-500/70" />
-              <span>Contas Rápidas do Sistema</span>
-            </p>
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => preencherCredencial('jogador1', '123456')}
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-painel hover:bg-linha border border-linha-forte hover:border-amber-600/50 rounded text-xs text-texto font-cinzel transition-all cursor-pointer"
-              >
-                <Shield className="w-3.5 h-3.5 text-amber-400" />
-                <span>Jogador 1</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => preencherCredencial('mestre', 'thaluriaadmin')}
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-[#1f191b] hover:bg-[#2a1f22] border border-red-900/40 hover:border-red-500/50 rounded text-xs text-red-200 font-cinzel transition-all cursor-pointer"
-              >
-                <Crown className="w-3.5 h-3.5 text-amber-400" />
-                <span>Mestre</span>
-              </button>
-            </div>
-          </div>
         </Card>
 
         {/* Nota de rodapé técnica */}
