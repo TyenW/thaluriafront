@@ -14,7 +14,12 @@ export interface MonstroBestiario {
   nome: string;
   regiao?: string;
   elemento?: string;
+  elementoSecundario?: string | null;
   porte?: string;
+  chefe?: boolean;
+  domesticavel?: boolean;
+  imagemUrl?: string | null;
+  descricao?: string | null;
   golpesPokemon?: GolpePokemon[];
 }
 
@@ -27,7 +32,16 @@ export interface ConteudoVisivelMundo {
 }
 
 export interface CidadeVisivel {
+  id?: number;
   nome: string;
+  /** Posição no mapa (viewBox 1536x1024), gravada no servidor. */
+  x?: number | null;
+  y?: number | null;
+  reino?: string | null;
+  icone?: string | null;
+  temPorto?: boolean;
+  tipo?: string;
+  descricao?: string | null;
   visibilidade: 'OCULTO' | 'ROTA_E_NOME_APENAS' | 'INFORMACOES_COMPLETAS';
   regiao?: string;
   geologia?: string;

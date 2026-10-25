@@ -23,7 +23,7 @@ export const Input: React.FC<InputProps> = ({
       {label && (
         <label
           htmlFor={inputId}
-          className="block text-xs font-cinzel font-semibold uppercase tracking-wider text-[#d4af37]/90 mb-1.5"
+          className="block text-xs font-cinzel font-semibold uppercase tracking-wider text-ouro/90 mb-1.5"
         >
           {label}
         </label>
@@ -31,19 +31,19 @@ export const Input: React.FC<InputProps> = ({
 
       <div className="relative flex items-center">
         {icon && (
-          <div className="absolute left-3 text-[#9e782f] pointer-events-none flex items-center">
+          <div className="absolute left-3 text-ouro-escuro pointer-events-none flex items-center">
             {icon}
           </div>
         )}
 
         <input
           id={inputId}
-          className={`w-full bg-[#0d0f15]/90 text-[#f3e5ab] placeholder-[#6b7280] rounded border px-3.5 py-2.5 text-sm transition-all outline-none ${
+          className={`w-full bg-abismo/90 text-pergaminho placeholder-apagado rounded border px-3.5 py-2.5 text-sm transition-all outline-none ${
             icon ? 'pl-10' : ''
           } ${
             error
               ? 'border-red-500/80 focus:border-red-400 focus:ring-1 focus:ring-red-500/50'
-              : 'border-[#383d4e] hover:border-[#525a70] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/40 focus:shadow-[0_0_12px_rgba(212,175,55,0.2)]'
+              : 'border-linha-forte hover:border-linha-forte focus:border-ouro focus:ring-1 focus:ring-ouro/40 focus:shadow-[0_0_12px_rgba(212,175,55,0.2)]'
           } ${className}`}
           {...props}
         />
@@ -54,7 +54,7 @@ export const Input: React.FC<InputProps> = ({
           <span>⚠️</span> {error}
         </p>
       ) : helperText ? (
-        <p className="mt-1 text-xs text-[#8c93a4] font-sans-clean">
+        <p className="mt-1 text-xs text-nevoa font-sans-clean">
           {helperText}
         </p>
       ) : null}

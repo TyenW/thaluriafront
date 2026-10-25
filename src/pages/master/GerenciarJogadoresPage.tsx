@@ -140,11 +140,51 @@ export const GerenciarJogadoresPage: React.FC = () => {
 
   const totalFichasCampanha = usuarios.reduce((acc, u) => acc + (u.totalFichas || 0), 0);
 
+  const acoesConta = (u: UsuarioResumo) => (
+    <div className="inline-flex items-center gap-1.5">
+      <button
+        onClick={() => handleAjustarLimiteRapido(u, -1)}
+        disabled={u.limiteFichas <= 1}
+        className="p-2 rounded-md bg-painel-alto hover:bg-red-950/60 border border-linha-forte hover:border-red-600/50 text-gray-400 hover:text-red-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+        title="Diminuir Limite de Fichas em 1"
+      >
+        <Minus className="w-3.5 h-3.5" />
+      </button>
+
+      <button
+        onClick={() => handleAjustarLimiteRapido(u, 1)}
+        className="p-2 rounded-md bg-painel-alto hover:bg-emerald-950/60 border border-linha-forte hover:border-emerald-600/50 text-gray-400 hover:text-emerald-300 transition-all cursor-pointer"
+        title="Aumentar Limite de Fichas em 1"
+      >
+        <Plus className="w-3.5 h-3.5" />
+      </button>
+
+      <button
+        onClick={() => handleCarregarParaEdicao(u)}
+        className="ml-2 inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-950/30 hover:bg-amber-900/50 border border-amber-600/40 text-[11px] font-cinzel text-amber-300 transition-all cursor-pointer"
+        title="Editar senha ou papel da conta"
+      >
+        <Pencil className="w-3 h-3" />
+        <span>Editar</span>
+      </button>
+
+      {u.username.toLowerCase() !== 'mestre' && (
+        <button
+          onClick={() => setUsuarioParaExcluir(u)}
+          className="p-2 rounded-md bg-painel-alto hover:bg-red-950/80 border border-linha-forte hover:border-red-600/70 text-gray-400 hover:text-red-300 transition-all cursor-pointer"
+          title={`Excluir permanentemente a conta "${u.username}"`}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 text-left pb-16">
       
       {/* Header Administrativo */}
-      <div className="border-b border-[#252b3a] pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="border-b border-linha pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <Badge variant="danger">
@@ -153,11 +193,11 @@ export const GerenciarJogadoresPage: React.FC = () => {
             </Badge>
             <Badge variant="gold">{usuarios.length} Contas Registradas</Badge>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-cinzel font-bold text-[#f3e5ab] flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-cinzel font-bold text-pergaminho flex items-center gap-3">
             <Users className="w-7 h-7 text-amber-400" />
             <span>Administração de Contas & Limites de Fichas</span>
           </h1>
-          <p className="text-xs text-[#8c93a4] font-sans-clean mt-1">
+          <p className="text-xs text-nevoa font-sans-clean mt-1">
             Gerencie os jogadores da campanha, expanda limites de personagens e consulte o acúmulo de Pity.
           </p>
         </div>
@@ -193,9 +233,9 @@ export const GerenciarJogadoresPage: React.FC = () => {
         
         {/* Formulário de Criação / Edição */}
         <Card variant="grimorio" className="lg:col-span-2 p-6 sm:p-8">
-          <div className="flex items-center gap-2 border-b border-[#252b3a] pb-3 mb-5">
+          <div className="flex items-center gap-2 border-b border-linha pb-3 mb-5">
             <UserPlus className="w-5 h-5 text-amber-400" />
-            <h3 className="font-cinzel text-base font-bold text-[#f3e5ab]">
+            <h3 className="font-cinzel text-base font-bold text-pergaminho">
               {username ? `Atualizar Conta: ${username}` : 'Cadastrar Novo Aventureiro ou Mestre'}
             </h3>
           </div>
@@ -221,13 +261,13 @@ export const GerenciarJogadoresPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-cinzel font-semibold uppercase tracking-wider text-[#d4af37]/90 mb-1.5">
+                <label className="block text-xs font-cinzel font-semibold uppercase tracking-wider text-ouro/90 mb-1.5">
                   Papel de Acesso
                 </label>
                 <select
                   value={papel}
                   onChange={(e) => setPapel(e.target.value as PapelUsuario)}
-                  className="w-full bg-[#0d0f15] text-[#f3e5ab] rounded-lg border border-[#383d4e] px-3.5 py-2.5 text-sm outline-none focus:border-[#d4af37]"
+                  className="w-full bg-abismo text-pergaminho rounded-lg border border-linha-forte px-3.5 py-2.5 text-sm outline-none focus:border-ouro"
                 >
                   <option value="JOGADOR">Jogador (Acesso Padrão)</option>
                   <option value="MESTRE">Mestre (Poder Supremo & FOW)</option>
@@ -235,7 +275,7 @@ export const GerenciarJogadoresPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-cinzel font-semibold uppercase tracking-wider text-[#d4af37]/90 mb-1.5">
+                <label className="block text-xs font-cinzel font-semibold uppercase tracking-wider text-ouro/90 mb-1.5">
                   Limite Máximo de Fichas
                 </label>
                 <input
@@ -244,7 +284,7 @@ export const GerenciarJogadoresPage: React.FC = () => {
                   max={50}
                   value={limiteFichas}
                   onChange={(e) => setLimiteFichas(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full bg-[#0d0f15] text-[#f3e5ab] rounded-lg border border-[#383d4e] px-3.5 py-2.5 text-sm outline-none focus:border-[#d4af37]"
+                  className="w-full bg-abismo text-pergaminho rounded-lg border border-linha-forte px-3.5 py-2.5 text-sm outline-none focus:border-ouro"
                 />
               </div>
             </div>
@@ -290,18 +330,18 @@ export const GerenciarJogadoresPage: React.FC = () => {
             </h3>
 
             <div className="space-y-3">
-              <div className="p-3 bg-[#0a0c12] rounded-lg border border-[#23293a] flex items-center justify-between">
-                <span className="text-xs font-cinzel text-[#8c93a4]">Total de Contas:</span>
+              <div className="p-3 bg-abismo rounded-lg border border-linha flex items-center justify-between">
+                <span className="text-xs font-cinzel text-nevoa">Total de Contas:</span>
                 <strong className="text-base font-cinzel text-amber-300 font-bold">{usuarios.length}</strong>
               </div>
 
-              <div className="p-3 bg-[#0a0c12] rounded-lg border border-[#23293a] flex items-center justify-between">
-                <span className="text-xs font-cinzel text-[#8c93a4]">Fichas Ativas no Mundo:</span>
+              <div className="p-3 bg-abismo rounded-lg border border-linha flex items-center justify-between">
+                <span className="text-xs font-cinzel text-nevoa">Fichas Ativas no Mundo:</span>
                 <strong className="text-base font-cinzel text-emerald-300 font-bold">{totalFichasCampanha}</strong>
               </div>
 
-              <div className="p-3 bg-[#0a0c12] rounded-lg border border-[#23293a] flex items-center justify-between">
-                <span className="text-xs font-cinzel text-[#8c93a4]">Mestres Registrados:</span>
+              <div className="p-3 bg-abismo rounded-lg border border-linha flex items-center justify-between">
+                <span className="text-xs font-cinzel text-nevoa">Mestres Registrados:</span>
                 <strong className="text-base font-cinzel text-purple-300 font-bold">
                   {usuarios.filter((u) => u.papel === 'MESTRE').length}
                 </strong>
@@ -309,28 +349,54 @@ export const GerenciarJogadoresPage: React.FC = () => {
             </div>
           </div>
 
-          <p className="text-[11px] text-[#8c93a4] font-sans-clean leading-relaxed italic border-t border-[#252b3a] pt-3">
+          <p className="text-[11px] text-nevoa font-sans-clean leading-relaxed italic border-t border-linha pt-3">
             O Pity acumula a cada tentativa de criação sem raça mítica e zera ao escolher Draconatos.
           </p>
         </Card>
       </div>
 
       {/* Tabela de Contas dos Jogadores */}
-      <Card variant="grimorio" className="p-6 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-[#252b3a] pb-4 mb-4">
-          <h3 className="font-cinzel text-base font-bold text-[#f3e5ab] flex items-center gap-2">
+      <Card variant="grimorio" className="p-4 sm:p-6 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-linha pb-4 mb-4">
+          <h3 className="font-cinzel text-base font-bold text-pergaminho flex items-center gap-2">
             <Users className="w-5 h-5 text-amber-400" />
             <span>Contas Registradas na Mesa ({usuarios.length})</span>
           </h3>
-          <span className="text-xs font-cinzel text-[#8c93a4]">
+          <span className="text-xs font-cinzel text-nevoa">
             Ajustes de limites têm efeito imediato
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <ul className="md:hidden divide-y divide-linha">
+          {usuarios.map((u) => {
+            const atingiuLimite = (u.totalFichas || 0) >= u.limiteFichas;
+            return (
+              <li key={u.id} className="py-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-cinzel font-bold text-pergaminho truncate">{u.username}</span>
+                  <Badge variant={u.papel === 'MESTRE' ? 'danger' : 'gold'} size="sm">
+                    {u.papel}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-nevoa">
+                  <span className="font-mono">#{u.id}</span>
+                  <span>
+                    Fichas: <strong className={`font-mono ${atingiuLimite ? 'text-red-400' : 'text-emerald-400'}`}>{u.totalFichas || 0} / {u.limiteFichas}</strong>
+                  </span>
+                  <span>
+                    Pity: <strong className="font-mono text-amber-300">+{u.pity || 0}</strong>
+                  </span>
+                </div>
+                <div className="flex justify-end">{acoesConta(u)}</div>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs font-sans-clean">
             <thead>
-              <tr className="border-b border-[#252b3a] text-[#8c93a4] font-cinzel uppercase text-[11px] tracking-wider">
+              <tr className="border-b border-linha text-nevoa font-cinzel uppercase text-[11px] tracking-wider">
                 <th className="py-3 px-3">ID</th>
                 <th className="py-3 px-3">Usuário</th>
                 <th className="py-3 px-3">Papel</th>
@@ -339,15 +405,15 @@ export const GerenciarJogadoresPage: React.FC = () => {
                 <th className="py-3 px-3 text-right">Ajuste Rápido de Limite</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#202534]">
+            <tbody className="divide-y divide-linha">
               {usuarios.map((u) => {
                 const atingiuLimite = (u.totalFichas || 0) >= u.limiteFichas;
 
                 return (
                   <tr key={u.id} className="hover:bg-white/5 transition-colors">
-                    <td className="py-3 px-3 font-mono text-[#8c93a4]">#{u.id}</td>
+                    <td className="py-3 px-3 font-mono text-nevoa">#{u.id}</td>
                     
-                    <td className="py-3 px-3 font-bold font-cinzel text-[#f3e5ab]">
+                    <td className="py-3 px-3 font-bold font-cinzel text-pergaminho">
                       {u.username}
                     </td>
 
@@ -378,43 +444,7 @@ export const GerenciarJogadoresPage: React.FC = () => {
                     </td>
 
                     <td className="py-3 px-3 text-right">
-                      <div className="inline-flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleAjustarLimiteRapido(u, -1)}
-                          disabled={u.limiteFichas <= 1}
-                          className="p-1 rounded bg-[#141724] hover:bg-red-950/60 border border-[#2b3346] hover:border-red-600/50 text-gray-400 hover:text-red-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
-                          title="Diminuir Limite de Fichas em 1"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-
-                        <button
-                          onClick={() => handleAjustarLimiteRapido(u, 1)}
-                          className="p-1 rounded bg-[#141724] hover:bg-emerald-950/60 border border-[#2b3346] hover:border-emerald-600/50 text-gray-400 hover:text-emerald-300 transition-all cursor-pointer"
-                          title="Aumentar Limite de Fichas em 1"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-
-                        <button
-                          onClick={() => handleCarregarParaEdicao(u)}
-                          className="ml-2 inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-950/30 hover:bg-amber-900/50 border border-amber-600/40 text-[11px] font-cinzel text-amber-300 transition-all cursor-pointer"
-                          title="Editar senha ou papel da conta"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          <span>Editar</span>
-                        </button>
-
-                        {u.username.toLowerCase() !== 'mestre' && (
-                          <button
-                            onClick={() => setUsuarioParaExcluir(u)}
-                            className="p-1 rounded bg-[#141724] hover:bg-red-950/80 border border-[#2b3346] hover:border-red-600/70 text-gray-400 hover:text-red-300 transition-all cursor-pointer"
-                            title={`Excluir permanentemente a conta "${u.username}"`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
+                      {acoesConta(u)}
                     </td>
                   </tr>
                 );
@@ -427,14 +457,14 @@ export const GerenciarJogadoresPage: React.FC = () => {
       {/* Modal de Confirmação de Exclusão de Conta */}
       {usuarioParaExcluir && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-[#10131d] border border-red-500/50 rounded-2xl shadow-2xl overflow-hidden p-6 text-left">
+          <div className="w-full max-w-md bg-painel border border-red-500/50 rounded-2xl shadow-2xl overflow-hidden p-6 text-left">
             <div className="flex items-center gap-3 text-red-400 mb-4">
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <h3 className="text-lg font-cinzel font-bold text-red-100">
                 Confirmar Exclusão de Conta
               </h3>
             </div>
-            <p className="text-xs text-[#a0a8be] font-sans-clean leading-relaxed mb-4">
+            <p className="text-xs text-texto-2 font-sans-clean leading-relaxed mb-4">
               Tem certeza de que deseja apagar a conta de jogador <strong className="text-amber-300 font-cinzel font-bold">{usuarioParaExcluir.username}</strong> (ID #{usuarioParaExcluir.id})?
             </p>
             {usuarioParaExcluir.totalFichas > 0 && (

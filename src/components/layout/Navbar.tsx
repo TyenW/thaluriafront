@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
+import {
+  Database,
   Shield, 
   Map as MapIcon, 
   BookOpen, 
@@ -42,9 +43,9 @@ export const Navbar: React.FC = () => {
   };
 
   const isActive = (path: string) => {
-    if (path === '/' && location.pathname === '/') return true;
-    if (path !== '/' && location.pathname.startsWith(path)) return true;
-    return false;
+    // Raízes ('/' e '/mestre') só ficam ativas na própria página, não nas filhas.
+    if (path === '/' || path === '/mestre') return location.pathname === path;
+    return location.pathname.startsWith(path);
   };
 
   const playerNavItems: NavItem[] = [
@@ -57,17 +58,18 @@ export const Navbar: React.FC = () => {
   ];
 
   const masterNavItems: NavItem[] = [
-    { label: 'Painel Central', path: '/mestre', icon: <Crown className="w-4 h-4" /> },
-    { label: 'Sessões Ao Vivo', path: '/mestre/sessoes', icon: <UserCheck className="w-4 h-4" />, highlight: true },
-    { label: 'Fog-of-War & Mundo', path: '/mestre/mundo', icon: <Globe className="w-4 h-4" /> },
-    { label: 'Mapa Geral', path: '/mapa', icon: <MapIcon className="w-4 h-4" /> },
-    { label: 'Jogadores & Contas', path: '/mestre/jogadores', icon: <Users className="w-4 h-4" /> },
+    { label: 'Painel', path: '/mestre', icon: <Crown className="w-4 h-4" /> },
+    { label: 'Sessões', path: '/mestre/sessoes', icon: <UserCheck className="w-4 h-4" />, highlight: true },
+    { label: 'Fog-of-War', path: '/mestre/mundo', icon: <Globe className="w-4 h-4" /> },
+    { label: 'Mapa', path: '/mapa', icon: <MapIcon className="w-4 h-4" /> },
+    { label: 'Jogadores', path: '/mestre/jogadores', icon: <Users className="w-4 h-4" /> },
+    { label: 'Gerenciar', path: '/mestre/gerenciar', icon: <Database className="w-4 h-4" /> },
   ];
 
   const currentNav = isMestre ? masterNavItems : playerNavItems;
 
   return (
-    <header className="sticky top-0 z-50 bg-[#090a0f]/95 backdrop-blur-md border-b border-[#252a38] shadow-2xl">
+    <header className="sticky top-0 z-50 bg-fundo/95 backdrop-blur-md border-b border-linha shadow-2xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-3">
           
@@ -83,25 +85,25 @@ export const Navbar: React.FC = () => {
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 flex-1 justify-center max-w-3xl mx-2">
+          <nav className="hidden xl:flex items-center gap-1 flex-1 min-w-0 justify-center mx-2">
             {currentNav.map((item) => {
               const active = isActive(item.path);
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-md font-cinzel text-[11px] xl:text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-cinzel text-[11px] 2xl:text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap ${
                     active
-                      ? 'text-[#f3e5ab] bg-[#d4af37]/15 border border-[#d4af37]/50 shadow-[0_0_12px_rgba(212,175,55,0.2)] font-bold'
-                      : 'text-[#8c93a4] hover:text-[#f3e5ab] hover:bg-white/5 border border-transparent'
+                      ? 'text-pergaminho bg-ouro/15 border border-ouro/50 shadow-[0_0_12px_rgba(212,175,55,0.2)] font-bold'
+                      : 'text-nevoa hover:text-pergaminho hover:bg-white/5 border border-transparent'
                   }`}
                 >
-                  <span className={active ? 'text-amber-400' : 'text-[#8c93a4]'}>
+                  <span className={active ? 'text-amber-400' : 'text-nevoa'}>
                     {item.icon}
                   </span>
                   <span>{item.label}</span>
                   {item.badge && (
-                    <span className="text-[9px] px-1.5 py-0.5 bg-purple-950/90 text-purple-300 border border-purple-500/40 rounded leading-none">
+                    <span className="text-[10px] px-1.5 py-0.5 bg-purple-950/90 text-purple-300 border border-purple-500/40 rounded leading-none">
                       {item.badge}
                     </span>
                   )}
@@ -131,14 +133,14 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center gap-2 sm:gap-3">
                 <div className="text-right hidden sm:block">
                   <div className="flex items-center justify-end gap-1.5">
-                    <span className="font-cinzel text-xs font-bold text-[#f3e5ab] max-w-[120px] truncate">
+                    <span className="font-cinzel text-xs font-bold text-pergaminho max-w-[120px] truncate">
                       {usuario.username}
                     </span>
                     <Badge variant={isMestre ? 'danger' : 'gold'}>
                       {usuario.papel}
                     </Badge>
                   </div>
-                  <div className="text-[10px] text-[#8c93a4] font-sans-clean mt-0.5">
+                  <div className="text-[10px] text-nevoa font-sans-clean mt-0.5">
                     {isMestre ? (
                       <span className="text-amber-400/80 font-cinzel">Mestre do Jogo</span>
                     ) : (
@@ -149,7 +151,7 @@ export const Navbar: React.FC = () => {
 
                 <button
                   onClick={handleLogout}
-                  className="hidden sm:flex items-center justify-center p-2 text-[#8c93a4] hover:text-red-400 hover:bg-red-950/30 rounded-lg border border-[#2b3142]/60 hover:border-red-900/50 transition-colors cursor-pointer"
+                  className="hidden sm:flex items-center justify-center p-2 text-nevoa hover:text-red-400 hover:bg-red-950/30 rounded-lg border border-linha-forte/60 hover:border-red-900/50 transition-colors cursor-pointer"
                   title="Encerrar Sessão"
                 >
                   <LogOut className="w-4 h-4" />
@@ -168,7 +170,7 @@ export const Navbar: React.FC = () => {
             <button
               type="button"
               onClick={() => setMenuAberto((v) => !v)}
-              className="flex lg:hidden items-center justify-center p-2 rounded-lg bg-[#141724] border border-[#2b3346] text-[#e6dfcf] hover:text-amber-400 hover:border-amber-500/50 transition-colors cursor-pointer"
+              className="flex xl:hidden items-center justify-center p-2 rounded-lg bg-painel-alto border border-linha-forte text-texto hover:text-amber-400 hover:border-amber-500/50 transition-colors cursor-pointer"
               aria-label={menuAberto ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
               aria-expanded={menuAberto}
             >
@@ -181,19 +183,19 @@ export const Navbar: React.FC = () => {
 
       {/* Gaveta / Dropdown Mobile & Tablet */}
       {menuAberto && (
-        <div className="lg:hidden border-t border-[#252a38] bg-[#0c0e15]/98 px-4 pt-4 pb-6 shadow-2xl backdrop-blur-xl animate-in slide-in-from-top-2 duration-200">
+        <div className="xl:hidden border-t border-linha bg-abismo/98 px-4 pt-4 pb-6 shadow-2xl backdrop-blur-xl animate-in slide-in-from-top-2 duration-200">
           {usuario && (
-            <div className="mb-4 pb-3 border-b border-[#1f2433] flex items-center justify-between">
+            <div className="mb-4 pb-3 border-b border-linha flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-cinzel text-sm font-bold text-[#f3e5ab]">
+                  <span className="font-cinzel text-sm font-bold text-pergaminho">
                     {usuario.username}
                   </span>
                   <Badge variant={isMestre ? 'danger' : 'gold'}>
                     {usuario.papel}
                   </Badge>
                 </div>
-                <div className="text-[11px] text-[#8c93a4] font-sans-clean mt-0.5">
+                <div className="text-[11px] text-nevoa font-sans-clean mt-0.5">
                   {isMestre ? (
                     <span className="text-amber-400/90 font-cinzel">Autoridade Máxima</span>
                   ) : (
@@ -223,12 +225,12 @@ export const Navbar: React.FC = () => {
                   onClick={() => setMenuAberto(false)}
                   className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg font-cinzel text-xs font-semibold uppercase tracking-wider transition-all ${
                     active
-                      ? 'text-[#f3e5ab] bg-[#d4af37]/20 border border-[#d4af37]/50 shadow-[0_0_12px_rgba(212,175,55,0.2)]'
-                      : 'text-[#9ca3af] hover:text-[#f3e5ab] hover:bg-white/5 border border-transparent'
+                      ? 'text-pergaminho bg-ouro/20 border border-ouro/50 shadow-[0_0_12px_rgba(212,175,55,0.2)]'
+                      : 'text-texto-2 hover:text-pergaminho hover:bg-white/5 border border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className={active ? 'text-amber-400' : 'text-[#8c93a4]'}>
+                    <span className={active ? 'text-amber-400' : 'text-nevoa'}>
                       {item.icon}
                     </span>
                     <span>{item.label}</span>
@@ -236,7 +238,7 @@ export const Navbar: React.FC = () => {
 
                   <div className="flex items-center gap-1.5">
                     {item.badge && (
-                      <span className="text-[9px] px-1.5 py-0.5 bg-purple-950/80 text-purple-300 border border-purple-500/40 rounded">
+                      <span className="text-[10px] px-1.5 py-0.5 bg-purple-950/80 text-purple-300 border border-purple-500/40 rounded">
                         {item.badge}
                       </span>
                     )}

@@ -15,6 +15,7 @@ export interface ItemInventarioFicha {
   tipo: string;
   raridade: string;
   quantidade: number;
+  imagemUrl?: string | null;
 }
 
 export interface PericiaFicha {
@@ -43,6 +44,41 @@ export type TipoMoeda =
 /** Quantidade física de cada moeda que o personagem carrega (sem conversões). */
 export type MoedasFicha = Record<TipoMoeda, number>;
 
+export interface HistoriaFicha {
+  historia: string;
+  aparencia: string;
+  personalidade: string;
+  anotacoes: string;
+}
+
+export type TipoCondicao = 'NEGATIVA' | 'POSITIVA' | 'NEUTRA';
+
+export interface CondicaoFicha {
+  id: number;
+  nome: string;
+  tipo: TipoCondicao;
+  intensidade: number;
+  /** null = sem duração definida (até ser removida). */
+  duracaoTurnos: number | null;
+  descricao: string | null;
+}
+
+export interface MagiaFicha {
+  id: number;
+  nome: string;
+  escola: string | null;
+  elemento: string | null;
+  circulo: number;
+  custoMana: number;
+  custoEnergia: number;
+  alcanceM: number;
+  dado: string | null;
+  tempoConjuracao: string | null;
+  duracao: string | null;
+  descricao: string | null;
+  preparada: boolean;
+}
+
 export interface FichaPersonagem {
   id: number;
   usuarioId?: number;
@@ -69,7 +105,11 @@ export interface FichaPersonagem {
   /** Total equivalente em latão, mantido pelo servidor para as lojas. Não exibir como saldo. */
   carteiraLatao?: number;
   moedas?: MoedasFicha;
-  cidadeAtual?: string;
+  cidadeAtual?: string | null;
+  cidadeAtualId?: number | null;
+  historia?: HistoriaFicha;
+  condicoes?: CondicaoFicha[];
+  magias?: MagiaFicha[];
   pontosEssencia?: number;
   poderAtaque?: number;
   nivelRessonancia?: number;

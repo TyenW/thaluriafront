@@ -33,7 +33,7 @@ export const ModalConfirmacao: React.FC<ModalConfirmacaoProps> = ({
     tamanho="sm"
     tom={perigoso ? 'danger' : 'gold'}
   >
-    <div className="text-xs text-[#a0a8be] font-sans-clean leading-relaxed mb-6">{children}</div>
+    <div className="text-xs text-texto-2 font-sans-clean leading-relaxed mb-6">{children}</div>
     <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
       <Button variant="ghost" size="sm" onClick={onCancelar} disabled={carregando}>
         Cancelar

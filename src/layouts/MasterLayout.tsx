@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Navbar } from '../components/layout/Navbar';
+import { CarregandoPagina } from '../components/common/CarregandoPagina';
 import { Loader2, Crown } from 'lucide-react';
 
 export const MasterLayout: React.FC = () => {
@@ -9,7 +10,7 @@ export const MasterLayout: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#090a0f]">
+      <div className="min-h-screen flex items-center justify-center bg-fundo">
         <div className="text-center">
           <Loader2 className="w-10 h-10 animate-spin text-amber-400 mx-auto mb-3" />
           <p className="font-cinzel text-sm text-amber-200/80 tracking-widest uppercase">
@@ -29,16 +30,19 @@ export const MasterLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#090a0f]">
+    <div className="min-h-screen flex flex-col bg-fundo">
       <div className="bg-gradient-to-r from-red-950/60 via-amber-950/40 to-red-950/60 border-b border-amber-600/30 px-4 py-1 text-center text-xs font-cinzel text-amber-300/90 flex items-center justify-center gap-2">
         <Crown className="w-3.5 h-3.5 text-amber-400" />
-        <span>MODO MESTRE ATIVO — ACESSO TOTAL AO FOG-OF-WAR, BANCO SQLITE E SESSÕES AO VIVO</span>
+        <span className="sm:hidden">MODO MESTRE</span>
+        <span className="hidden sm:inline">MODO MESTRE — ACESSO TOTAL AO FOG-OF-WAR E ÀS SESSÕES AO VIVO</span>
       </div>
       <Navbar />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Outlet />
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <Suspense fallback={<CarregandoPagina />}>
+          <Outlet />
+        </Suspense>
       </main>
-      <footer className="py-6 border-t border-[#1f2430] bg-[#07080b]/80 text-center text-xs text-[#6b7280] font-sans-clean">
+      <footer className="py-6 border-t border-linha bg-abismo/80 text-center text-xs text-apagado font-sans-clean">
         <p className="font-cinzel tracking-wider text-amber-500/60 mb-1">
           PAINEL ADMINISTRATIVO DO MESTRE • THALÚRIA RPG
         </p>

@@ -9,11 +9,12 @@ import {
   Minus,
   Navigation,
   Plus,
-  X,
 } from 'lucide-react';
 import {
   ALTURA_MAPA,
   CIDADES_ATLAS,
+  ESTRADAS_ATLAS,
+  ROTAS_MARITIMAS_ATLAS,
   LARGURA_MAPA,
   REINOS,
   ROTULOS_MAR,
@@ -21,9 +22,32 @@ import {
   type TipoCidade,
 } from '../../data/atlasThaluria';
 import type { CidadeVisivel, RotaConexao } from '../../types/monstro';
-import { construirAtlas, type AtlasConstruido, type SimboloTerreno } from './construirAtlas';
-
-type NivelVisibilidade = CidadeVisivel['visibilidade'];
+import { construirAtlas } from './construirAtlas';
+import { tracarRota } from './tracadoRotas';
+import {
+  CENTROS_REINOS,
+  FONTE_MAPA,
+  FONTE_MAPA_SC,
+  PAPEL_CLARO,
+  PAPEL_NEVOA,
+  ROTULO_TIPO,
+  TINTA,
+  TINTA_SUAVE,
+  TINTA_VERMELHA,
+  VISTA_INICIAL,
+  ZOOM_MAX,
+  ajustarVista,
+  getCorPerigo,
+  limitar,
+  normalizar,
+  type CidadeResolvida,
+  type NivelVisibilidade,
+  type RotaHoverInfo,
+  type RotaTracada,
+  type Vista,
+} from './estiloMapa';
+import { BarraEscala, CamadaBase, GlifoCidade, RosaDosVentos, Titulo } from './ornamentosMapa';
+import { BotaoMapa, FichaCidade, Legenda } from './interfaceMapa';
 
 export interface MapaThaluriaProps {
   cidades: CidadeVisivel[];
@@ -40,402 +64,8 @@ export interface MapaThaluriaProps {
 }
 
 // ---------------------------------------------------------------------------
-// Paleta "tinta ferrogálica sobre pergaminho"
-// ---------------------------------------------------------------------------
-const TINTA = '#3a2a1a';
-const TINTA_SUAVE = '#6b5436';
-const TINTA_VERMELHA = '#8a3b2a';
-const PAPEL_CLARO = '#f3e7c3';
-const PAPEL_NEVOA = '#e3d3a6';
-const FONTE_MAPA = "'IM Fell English', 'IM Fell DW Pica', Georgia, 'Times New Roman', serif";
-const FONTE_MAPA_SC = "'IM Fell English SC', 'IM Fell English', Georgia, serif";
-
-const ROTULO_TIPO: Record<TipoCidade, string> = {
-  capital: 'Capital do Reino',
-  cidade: 'Cidade',
-  vila: 'Vila',
-  porto: 'Porto',
-  fortaleza: 'Fortaleza',
-};
-
-const ROTULO_VISIBILIDADE: Record<NivelVisibilidade, string> = {
-  OCULTO: 'Oculto',
-  ROTA_E_NOME_APENAS: 'Só nome e rota',
-  INFORMACOES_COMPLETAS: 'Revelado',
-};
-
-const normalizar = (t: string) =>
-  t
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
-
-const limitar = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
-
-interface Vista {
-  x: number;
-  y: number;
-  k: number;
-}
-
-const VISTA_INICIAL: Vista = { x: 0, y: 0, k: 1 };
-const ZOOM_MAX = 7;
-
-function ajustarVista(v: Vista): Vista {
-  const k = limitar(v.k, 1, ZOOM_MAX);
-  const w = LARGURA_MAPA / k;
-  const h = ALTURA_MAPA / k;
-  return { k, x: limitar(v.x, 0, LARGURA_MAPA - w), y: limitar(v.y, 0, ALTURA_MAPA - h) };
-}
-
-const CENTROS_REINOS: Record<string, { x: number; y: number; zoom: number }> = {
-  frosthelm: { x: 540, y: 190, zoom: 2.2 },
-  sylvanor: { x: 1040, y: 220, zoom: 2.2 },
-  aurelia: { x: 440, y: 440, zoom: 2.2 },
-  drakos: { x: 1260, y: 440, zoom: 2.2 },
-  valthera: { x: 700, y: 700, zoom: 2.2 },
-  campos: { x: 1100, y: 680, zoom: 2.2 },
-  ilhas: { x: 768, y: 512, zoom: 1.4 },
-};
-
-function getCorPerigo(perigo: number) {
-  if (perigo <= 3) {
-    return {
-      texto: 'text-emerald-700',
-      bg: 'bg-emerald-600/15',
-      borda: 'border-emerald-700/30',
-      rotulo: 'Segura',
-    };
-  }
-  if (perigo <= 6) {
-    return {
-      texto: 'text-amber-700',
-      bg: 'bg-amber-600/15',
-      borda: 'border-amber-700/30',
-      rotulo: 'Moderada',
-    };
-  }
-  return {
-    texto: 'text-rose-700',
-    bg: 'bg-rose-600/15',
-    borda: 'border-rose-700/30',
-    rotulo: 'Perigosa',
-  };
-}
-
-interface RotaHoverInfo {
-  de: string;
-  para: string;
-  maritima: boolean;
-  principal?: boolean;
-  distanciaKm: number;
-  perigo: number;
-  bloqueada: boolean;
-  visivelParaJogador: boolean;
-  screenX: number;
-  screenY: number;
-}
-
-// ---------------------------------------------------------------------------
-// Símbolos de terreno (desenhados à mão em coordenadas locais)
-// ---------------------------------------------------------------------------
-function SimboloTerrenoSvg({ simbolo }: { simbolo: SimboloTerreno }) {
-  const { tipo, x, y, s } = simbolo;
-  const t = `translate(${x.toFixed(1)} ${y.toFixed(1)})`;
-
-  switch (tipo) {
-    case 'montanha':
-    case 'pico_nevado': {
-      const topo = -s * 1.15;
-      const hachuras = [0.3, 0.55, 0.8]
-        .map((u) => {
-          const px = s * u;
-          const py = topo * (1 - u);
-          return `M${px.toFixed(1)},${py.toFixed(1)}L${(px - s * 0.22).toFixed(1)},${(py + s * 0.3).toFixed(1)}`;
-        })
-        .join('');
-      return (
-        <g transform={t}>
-          <path
-            d={`M${-s},0L${-s * 0.1},${topo}L${s * 0.25},${topo * 0.8}L${s},0`}
-            fill={tipo === 'pico_nevado' ? '#f8f1dc' : '#e8d9ae'}
-            stroke={TINTA}
-            strokeWidth={0.9}
-            strokeLinejoin="round"
-          />
-          <path d={hachuras} stroke={TINTA_SUAVE} strokeWidth={0.7} fill="none" />
-        </g>
-      );
-    }
-    case 'vulcao':
-      return (
-        <g transform={t}>
-          <path
-            d={`M${-s},0L${-s * 0.28},${-s}L${s * 0.28},${-s}L${s},0`}
-            fill="#d9b79b"
-            stroke={TINTA}
-            strokeWidth={1}
-            strokeLinejoin="round"
-          />
-          <path
-            d={`M${-s * 0.2},${-s}Q${-s * 0.5},${-s * 1.5} ${0},${-s * 1.7}T${s * 0.3},${-s * 2.4}`}
-            stroke={TINTA_VERMELHA}
-            strokeWidth={1.2}
-            fill="none"
-            strokeLinecap="round"
-          />
-        </g>
-      );
-    case 'floresta':
-      return (
-        <g transform={t}>
-          <path d={`M0,0V${-s * 0.45}`} stroke={TINTA} strokeWidth={0.8} />
-          <circle cx={0} cy={-s * 0.85} r={s * 0.55} fill="#cdd1a0" stroke={TINTA} strokeWidth={0.8} />
-          <path d={`M${-s * 0.25},${-s * 0.9}Q0,${-s * 0.5} ${s * 0.3},${-s * 0.95}`} stroke={TINTA_SUAVE} strokeWidth={0.5} fill="none" />
-        </g>
-      );
-    case 'colina':
-      return (
-        <g transform={t}>
-          <path d={`M${-s},0Q0,${-s * 0.95} ${s},0`} fill="none" stroke={TINTA} strokeWidth={0.9} strokeLinecap="round" />
-          <path d={`M${s * 0.15},${-s * 0.35}L${s * 0.02},${-s * 0.08}`} stroke={TINTA_SUAVE} strokeWidth={0.6} />
-        </g>
-      );
-    case 'arvore_morta':
-      return (
-        <g transform={t} stroke={TINTA} strokeWidth={0.8} fill="none" strokeLinecap="round">
-          <path d={`M0,0V${-s}M0,${-s * 0.55}L${-s * 0.4},${-s * 0.85}M0,${-s * 0.7}L${s * 0.4},${-s * 1.05}`} />
-        </g>
-      );
-    case 'capim':
-      return (
-        <g transform={t} stroke={TINTA_SUAVE} strokeWidth={0.7} fill="none" strokeLinecap="round">
-          <path d={`M0,0L${-s * 0.5},${-s}M0,0V${-s * 1.15}M0,0L${s * 0.5},${-s}`} />
-        </g>
-      );
-  }
-}
-
-const SimboloTerrenoMemo = React.memo(SimboloTerrenoSvg);
-
-// ---------------------------------------------------------------------------
-// Ícones de assentamentos
-// ---------------------------------------------------------------------------
-function GlifoCidade({ tipo, parcial }: { tipo: TipoCidade; parcial: boolean }) {
-  const comum = {
-    fill: parcial ? 'none' : PAPEL_CLARO,
-    stroke: TINTA,
-    strokeWidth: 1.1,
-    strokeLinejoin: 'round' as const,
-    strokeDasharray: parcial ? '2 2' : undefined,
-  };
-  switch (tipo) {
-    case 'capital':
-      return (
-        <path
-          {...comum}
-          d="M-8,7V0H-6V-3H-4V0H-2V-7L0,-10L2,-7V0H4V-3H6V0H8V7Z"
-        />
-      );
-    case 'fortaleza':
-      return <path {...comum} d="M-5,6V-5H-3V-3H-1V-5H1V-3H3V-5H5V6Z" />;
-    case 'porto':
-      return (
-        <g {...comum} fill="none">
-          <circle cx={0} cy={-5.5} r={1.8} fill={parcial ? 'none' : PAPEL_CLARO} />
-          <path d="M0,-3.7V6M-3.5,-1H3.5M-6,2Q-5.5,6.5 0,6.5Q5.5,6.5 6,2" strokeLinecap="round" />
-        </g>
-      );
-    case 'cidade':
-      return (
-        <g {...comum}>
-          <circle cx={0} cy={0} r={5} />
-          <circle cx={0} cy={0} r={1.6} fill={parcial ? 'none' : TINTA} stroke="none" />
-        </g>
-      );
-    case 'vila':
-      return <circle cx={0} cy={0} r={2.6} {...comum} fill={parcial ? 'none' : TINTA} />;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Decorações cartográficas
-// ---------------------------------------------------------------------------
-function RosaDosVentos({ x, y }: { x: number; y: number }) {
-  const rExt = 38;
-  const rInt = 14;
-  return (
-    <g transform={`translate(${x} ${y})`} pointerEvents="none" opacity={0.88}>
-      <circle cx={0} cy={0} r={rExt + 6} fill="none" stroke={TINTA} strokeWidth={0.8} />
-      <circle cx={0} cy={0} r={rExt + 3} fill="none" stroke={TINTA_SUAVE} strokeWidth={0.5} strokeDasharray="1 2" />
-      <circle cx={0} cy={0} r={rInt} fill="none" stroke={TINTA} strokeWidth={0.7} />
-      {/* 4 pontas cardeais */}
-      <path d={`M0,0L${-rInt * 0.4},${-rInt * 0.4}L0,${-rExt}Z`} fill={TINTA} />
-      <path d={`M0,0L${rInt * 0.4},${-rInt * 0.4}L0,${-rExt}Z`} fill={PAPEL_CLARO} stroke={TINTA} strokeWidth={0.5} />
-      <path d={`M0,0L${rInt * 0.4},${rInt * 0.4}L0,${rExt}Z`} fill={TINTA} />
-      <path d={`M0,0L${-rInt * 0.4},${rInt * 0.4}L0,${rExt}Z`} fill={PAPEL_CLARO} stroke={TINTA} strokeWidth={0.5} />
-      <path d={`M0,0L${-rInt * 0.4},${rInt * 0.4}L${-rExt},0Z`} fill={TINTA} />
-      <path d={`M0,0L${-rInt * 0.4},${-rInt * 0.4}L${-rExt},0Z`} fill={PAPEL_CLARO} stroke={TINTA} strokeWidth={0.5} />
-      <path d={`M0,0L${rInt * 0.4},${-rInt * 0.4}L${rExt},0Z`} fill={TINTA} />
-      <path d={`M0,0L${rInt * 0.4},${rInt * 0.4}L${rExt},0Z`} fill={PAPEL_CLARO} stroke={TINTA} strokeWidth={0.5} />
-      {/* 4 pontas colaterais menores */}
-      <path d={`M0,0L0,${-rInt * 0.5}L${rExt * 0.65},${-rExt * 0.65}Z`} fill={TINTA_SUAVE} />
-      <path d={`M0,0L0,${rInt * 0.5}L${-rExt * 0.65},${rExt * 0.65}Z`} fill={TINTA_SUAVE} />
-      <path d={`M0,0L${rInt * 0.5},0L${rExt * 0.65},${rExt * 0.65}Z`} fill={TINTA_SUAVE} />
-      <path d={`M0,0L${-rInt * 0.5},0L${-rExt * 0.65},${-rExt * 0.65}Z`} fill={TINTA_SUAVE} />
-      <circle cx={0} cy={0} r={2.5} fill={TINTA} />
-      <text x={0} y={-rExt - 8} textAnchor="middle" fontSize={13} fontFamily={FONTE_MAPA_SC} fill={TINTA} fontWeight={700}>
-        N
-      </text>
-      <text x={0} y={rExt + 16} textAnchor="middle" fontSize={11} fontFamily={FONTE_MAPA_SC} fill={TINTA_SUAVE}>
-        S
-      </text>
-      <text x={rExt + 10} y={4} textAnchor="start" fontSize={11} fontFamily={FONTE_MAPA_SC} fill={TINTA_SUAVE}>
-        L
-      </text>
-      <text x={-rExt - 10} y={4} textAnchor="end" fontSize={11} fontFamily={FONTE_MAPA_SC} fill={TINTA_SUAVE}>
-        O
-      </text>
-    </g>
-  );
-}
-
-function BarraEscala({ x, y }: { x: number; y: number }) {
-  // No mapa, 1536 px ~ 1200 km; 128 px = 100 km; barra de 200 km = 256 px
-  const comp = 200;
-  const segmentos = 4;
-  const segW = comp / segmentos;
-  return (
-    <g transform={`translate(${x} ${y})`} pointerEvents="none" opacity={0.85}>
-      <rect x={0} y={0} width={comp} height={6} fill={PAPEL_CLARO} stroke={TINTA} strokeWidth={0.8} />
-      {Array.from({ length: segmentos }).map((_, i) => (
-        <rect
-          key={i}
-          x={i * segW}
-          y={0}
-          width={segW}
-          height={6}
-          fill={i % 2 === 0 ? TINTA : PAPEL_CLARO}
-          stroke={TINTA}
-          strokeWidth={0.5}
-        />
-      ))}
-      <text x={0} y={-4} textAnchor="middle" fontSize={9.5} fontFamily={FONTE_MAPA} fill={TINTA}>
-        0
-      </text>
-      <text x={comp / 2} y={-4} textAnchor="middle" fontSize={9.5} fontFamily={FONTE_MAPA} fill={TINTA}>
-        100
-      </text>
-      <text x={comp} y={-4} textAnchor="middle" fontSize={9.5} fontFamily={FONTE_MAPA} fill={TINTA}>
-        200 km
-      </text>
-      <text x={comp / 2} y={17} textAnchor="middle" fontSize={9} fontStyle="italic" fontFamily={FONTE_MAPA} fill={TINTA_SUAVE}>
-        Escala Cartográfica
-      </text>
-    </g>
-  );
-}
-
-function Titulo({ x, y }: { x: number; y: number }) {
-  return (
-    <g transform={`translate(${x} ${y})`} pointerEvents="none">
-      <rect
-        x={-8}
-        y={-28}
-        width={310}
-        height={68}
-        fill={PAPEL_CLARO}
-        fillOpacity={0.88}
-        stroke={TINTA}
-        strokeWidth={1.2}
-      />
-      <rect x={-5} y={-25} width={304} height={62} fill="none" stroke={TINTA_SUAVE} strokeWidth={0.6} />
-      <text x={147} y={-2} textAnchor="middle" fontFamily={FONTE_MAPA_SC} fontSize={22} letterSpacing={4} fill={TINTA} fontWeight={700}>
-        CONTINENTE DE THALÚRIA
-      </text>
-      <text x={147} y={20} textAnchor="middle" fontStyle="italic" fontSize={11.5} letterSpacing={1} fill={TINTA_SUAVE}>
-        Cartografia dos Cinco Reinos &amp; Terras Além
-      </text>
-    </g>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Camada base do atlas (memorizada para evitar refazer caminhos pesados)
-// ---------------------------------------------------------------------------
-const CamadaBase: React.FC<{ atlas: AtlasConstruido; idClip: string }> = React.memo(function CamadaBase({ atlas, idClip }) {
-  return (
-    <>
-      {/* Sombra da costa (costal wash no mar) */}
-      <path d={atlas.terra} fill="none" stroke="#2a1f14" strokeWidth={18} strokeOpacity={0.08} />
-      <path d={atlas.terra} fill="none" stroke="#2a1f14" strokeWidth={10} strokeOpacity={0.12} />
-      <path d={atlas.terra} fill="none" stroke="#2a1f14" strokeWidth={4} strokeOpacity={0.2} />
-
-      {/* Terra firme */}
-      <path d={atlas.terra} fill="#e5d4a4" stroke={TINTA} strokeWidth={1.4} strokeLinejoin="round" />
-
-      {/* Territórios dos cinco reinos (cores muito lavadas) */}
-      <g clipPath={`url(#${idClip})`}>
-        {atlas.territorios.map((t) => {
-          const r = REINOS.find((x) => x.id === t.id);
-          return (
-            <path
-              key={t.id}
-              d={t.d}
-              fill={r?.cor ?? '#c8b486'}
-              fillOpacity={0.16}
-              stroke={TINTA_VERMELHA}
-              strokeWidth={1.2}
-              strokeDasharray="8 4 2 4"
-              strokeOpacity={0.55}
-            />
-          );
-        })}
-      </g>
-
-      {/* Lago interior */}
-      <path d={atlas.lago} fill="none" stroke="#2a1f14" strokeWidth={4} strokeOpacity={0.15} />
-      <path d={atlas.lago} fill="#e9d9ab" stroke={TINTA} strokeWidth={1.2} />
-
-      {/* Ilhas costeiras */}
-      {atlas.ilhas.map((ilha) => (
-        <path key={ilha.id} d={ilha.d} fill="#e5d4a4" stroke={TINTA} strokeWidth={1.2} strokeLinejoin="round" />
-      ))}
-
-      {/* Rios */}
-      <g fill="none" stroke={TINTA} strokeLinecap="round" strokeLinejoin="round">
-        {atlas.rios.map((d, i) => (
-          <path key={i} d={d} strokeWidth={1.4} strokeOpacity={0.85} />
-        ))}
-      </g>
-
-      {/* Símbolos desenhados (montanhas, florestas, colinas...) */}
-      <g pointerEvents="none">
-        {atlas.simbolos.map((s) => (
-          <SimboloTerrenoMemo key={s.chave} simbolo={s} />
-        ))}
-      </g>
-
-      {/* Ondas decorativas no oceano */}
-      <g stroke={TINTA_SUAVE} strokeWidth={0.7} fill="none" strokeLinecap="round" opacity={0.45} pointerEvents="none">
-        {atlas.ondas.map((p, i) => (
-          <path key={i} d={`M${p.x - 7},${p.y}Q${p.x - 3.5},${p.y - 3} ${p.x},${p.y}Q${p.x + 3.5},${p.y - 3} ${p.x + 7},${p.y}`} />
-        ))}
-      </g>
-    </>
-  );
-});
-
-// ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
-interface CidadeResolvida {
-  atlas: CidadeAtlas;
-  api?: CidadeVisivel;
-  /** O que os jogadores enxergam desta cidade. */
-  vis: NivelVisibilidade;
-}
 
 export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
   cidades,
@@ -476,10 +106,66 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
     onTogglePreviewJogador?.(previewJogador);
   }, [previewJogador, onTogglePreviewJogador]);
 
+  // --- Cidades e rotas vindas da API (posição gravada no servidor) ----------
+  // O atlas local só completa dados ausentes e serve de base no modo demonstração.
+  const cidadesBase = useMemo<CidadeAtlas[]>(() => {
+    if (demonstracao && cidades.length === 0) return CIDADES_ATLAS;
+    const atlasPorNome = new Map(CIDADES_ATLAS.map((c) => [normalizar(c.nome), c]));
+    const lista: CidadeAtlas[] = [];
+    for (const c of cidades) {
+      if (c.nome === '???') continue;
+      const base = atlasPorNome.get(normalizar(c.nome));
+      const x = c.x ?? base?.x;
+      const y = c.y ?? base?.y;
+      if (x == null || y == null) continue;
+      lista.push({
+        nome: c.nome,
+        reino: (c.reino as CidadeAtlas['reino']) ?? base?.reino ?? 'ilhas',
+        tipo: (c.icone as TipoCidade) ?? base?.tipo ?? (c.temPorto ? 'porto' : 'cidade'),
+        x,
+        y,
+        rotulo: base?.rotulo,
+      });
+    }
+    return lista;
+  }, [cidades, demonstracao]);
+
+  const { estradasBase, maritimasBase } = useMemo(() => {
+    const posicao = new Map(cidadesBase.map((c) => [c.nome, c]));
+    const lista: { de: string; para: string; tipo: 'TERRESTRE' | 'MARITIMA' }[] =
+      demonstracao && rotas.length === 0
+        ? [
+            ...ESTRADAS_ATLAS.map((e) => ({ de: e.de, para: e.para, tipo: 'TERRESTRE' as const })),
+            ...ROTAS_MARITIMAS_ATLAS.map((e) => ({ de: e.de, para: e.para, tipo: 'MARITIMA' as const })),
+          ]
+        : rotas.map((r) => ({ de: r.origem, para: r.destino, tipo: r.tipo }));
+    const estradas: RotaTracada[] = [];
+    const maritimas: RotaTracada[] = [];
+    for (const r of lista) {
+      const a = posicao.get(r.de);
+      const b = posicao.get(r.para);
+      if (!a || !b) continue;
+      const maritima = r.tipo === 'MARITIMA';
+      const t = tracarRota(a, b, maritima ? 'agua' : 'terra');
+      const rota: RotaTracada = {
+        chave: `${r.tipo}|${r.de}|${r.para}`,
+        de: r.de,
+        para: r.para,
+        d: t.d,
+        // Estradas que saem de capitais são as vias principais do reino.
+        principal: !maritima && (a.tipo === 'capital' || b.tipo === 'capital'),
+        impossivel: t.impossivel,
+        motivo: t.motivo,
+      };
+      (maritima ? maritimas : estradas).push(rota);
+    }
+    return { estradasBase: estradas, maritimasBase: maritimas };
+  }, [cidadesBase, rotas, demonstracao]);
+
   // --- Resolve o que cada cidade do atlas mostra ---------------------------
   const cidadesResolvidas = useMemo<CidadeResolvida[]>(() => {
     const porNome = new Map(cidades.map((c) => [normalizar(c.nome), c]));
-    return CIDADES_ATLAS.map((atlasCidade) => {
+    return cidadesBase.map((atlasCidade) => {
       const api = porNome.get(normalizar(atlasCidade.nome));
       let vis: NivelVisibilidade;
       if (demonstracao) {
@@ -495,15 +181,15 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
       }
       return { atlas: atlasCidade, api, vis };
     });
-  }, [cidades, demonstracao, ehVisaoMestre, sobrepor]);
+  }, [cidades, cidadesBase, demonstracao, ehVisaoMestre, sobrepor]);
 
   const resolvidaPorNome = useMemo(() => new Map(cidadesResolvidas.map((c) => [c.atlas.nome, c])), [cidadesResolvidas]);
 
-  /** Cidades da API que não existem no atlas (nome diferente) — úteis para o mestre acertar os dados. */
+  /** Cidades da API sem posição no mapa — o Mestre pode posicioná-las no painel de gerenciamento. */
   const semCoordenadas = useMemo(() => {
-    const nomesAtlas = new Set(CIDADES_ATLAS.map((c) => normalizar(c.nome)));
-    return cidades.filter((c) => c.nome !== '???' && !nomesAtlas.has(normalizar(c.nome)));
-  }, [cidades]);
+    const comPosicao = new Set(cidadesBase.map((c) => normalizar(c.nome)));
+    return cidades.filter((c) => c.nome !== '???' && !comPosicao.has(normalizar(c.nome)));
+  }, [cidades, cidadesBase]);
 
   const visivel = (c: CidadeResolvida) => c.vis !== 'OCULTO';
 
@@ -547,13 +233,14 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
 
   // Lista de estradas com dados e visibilidade calculados
   const estradasRenderizadas = useMemo(() => {
-    return atlas.estradas
+    return estradasBase
       .map((e) => {
         const a = resolvidaPorNome.get(e.de);
         const b = resolvidaPorNome.get(e.para);
         const visivelJog = isRotaVisivelParaJogador(e.de, e.para);
         // O mestre vê todas as rotas; o jogador vê apenas as reveladas
-        const deveExibir = ehVisaoMestre || visivelJog;
+        // Traçado impossível (ex.: estrada até ilha) só aparece ao Mestre, como alerta.
+        const deveExibir = ehVisaoMestre || (visivelJog && !e.impossivel);
         if (!deveExibir || !a || !b) return null;
         const info = buscarRota(e.de, e.para);
         return {
@@ -564,22 +251,23 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
           info,
         };
       })
-      .filter(Boolean) as (typeof atlas.estradas[0] & {
+      .filter(Boolean) as (RotaTracada & {
         a: CidadeResolvida;
         b: CidadeResolvida;
         visivelJog: boolean;
         info?: RotaConexao;
       })[];
-  }, [atlas.estradas, resolvidaPorNome, isRotaVisivelParaJogador, ehVisaoMestre, buscarRota]);
+  }, [estradasBase, resolvidaPorNome, isRotaVisivelParaJogador, ehVisaoMestre, buscarRota]);
 
   // Lista de rotas marítimas com dados e visibilidade calculados
   const rotasMaritimasRenderizadas = useMemo(() => {
-    return atlas.rotasMaritimas
+    return maritimasBase
       .map((r) => {
         const a = resolvidaPorNome.get(r.de);
         const b = resolvidaPorNome.get(r.para);
         const visivelJog = isRotaVisivelParaJogador(r.de, r.para);
-        const deveExibir = ehVisaoMestre || visivelJog;
+        // Traçado impossível (ex.: estrada até ilha) só aparece ao Mestre, como alerta.
+        const deveExibir = ehVisaoMestre || (visivelJog && !r.impossivel);
         if (!deveExibir || !a || !b) return null;
         const info = buscarRota(r.de, r.para);
         return {
@@ -590,13 +278,13 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
           info,
         };
       })
-      .filter(Boolean) as (typeof atlas.rotasMaritimas[0] & {
+      .filter(Boolean) as (RotaTracada & {
         a: CidadeResolvida;
         b: CidadeResolvida;
         visivelJog: boolean;
         info?: RotaConexao;
       })[];
-  }, [atlas.rotasMaritimas, resolvidaPorNome, isRotaVisivelParaJogador, ehVisaoMestre, buscarRota]);
+  }, [maritimasBase, resolvidaPorNome, isRotaVisivelParaJogador, ehVisaoMestre, buscarRota]);
 
   // --- Navegação (zoom / pan) ---------------------------------------------
   const cancelarAnimacao = () => {
@@ -829,7 +517,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
   const rotasDaCidade = useMemo(() => {
     if (!atual) return [];
     const lista: { destino: string; maritima: boolean; info?: RotaConexao; visivel: boolean; distanciaKm: number }[] = [];
-    atlas.estradas.forEach((e) => {
+    estradasBase.forEach((e) => {
       if (e.de === atual.atlas.nome || e.para === atual.atlas.nome) {
         const destino = e.de === atual.atlas.nome ? e.para : e.de;
         const d = resolvidaPorNome.get(destino);
@@ -844,7 +532,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
         });
       }
     });
-    atlas.rotasMaritimas.forEach((e) => {
+    maritimasBase.forEach((e) => {
       if (e.de === atual.atlas.nome || e.para === atual.atlas.nome) {
         const destino = e.de === atual.atlas.nome ? e.para : e.de;
         const d = resolvidaPorNome.get(destino);
@@ -860,7 +548,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
       }
     });
     return ehVisaoMestre ? lista : lista.filter((r) => r.visivel);
-  }, [atual, atlas, resolvidaPorNome, ehVisaoMestre, buscarRota, estimarDistancia]);
+  }, [atual, estradasBase, maritimasBase, resolvidaPorNome, ehVisaoMestre, buscarRota, estimarDistancia]);
 
   // --- Escalas dependentes do zoom ------------------------------------------
   const k = vista.k;
@@ -981,20 +669,21 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                 const isHovered = rotaHover?.de === r.de && rotaHover?.para === r.para;
                 return (
                   <g key={r.chave}>
-                    {/* Halo de contraste escuro para separar do oceano */}
+                    {r.impossivel && <title>{`Rota inválida: ${r.motivo}`}</title>}
+                    {/* Halo claro: separa a rota da água e da hachura do mar */}
                     <path
                       d={r.d}
-                      stroke="#14222d"
-                      strokeWidth={4.8}
-                      strokeOpacity={0.32}
+                      stroke="#f3e7c3"
+                      strokeWidth={5.2}
+                      strokeOpacity={0.55}
                       strokeLinecap="round"
                     />
                     {/* Linha visível da rota marítima */}
                     <path
                       d={r.d}
-                      stroke={!r.visivelJog && ehVisaoMestre ? '#7d725f' : '#334155'}
+                      stroke={r.impossivel ? TINTA_VERMELHA : !r.visivelJog && ehVisaoMestre ? '#5f7a8c' : '#1f4f6b'}
                       strokeWidth={2.2}
-                      strokeDasharray={!r.visivelJog && ehVisaoMestre ? '2 6' : '3 5'}
+                      strokeDasharray={r.impossivel ? '1 7' : !r.visivelJog && ehVisaoMestre ? '2 6' : '7 5'}
                       strokeLinecap="round"
                       strokeOpacity={!r.visivelJog && ehVisaoMestre ? 0.55 : 0.95}
                       filter={isHovered ? 'drop-shadow(0 0 6px rgba(212,175,55,0.95))' : undefined}
@@ -1024,6 +713,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                 const bloqueada = !!e.info?.bloqueada;
                 return (
                   <g key={e.chave}>
+                    {e.impossivel && <title>{`Rota inválida: ${e.motivo}`}</title>}
                     {/* Halo de contraste sob a estrada para legibilidade perfeita */}
                     <path
                       d={e.d}
@@ -1036,7 +726,9 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                     <path
                       d={e.d}
                       stroke={
-                        bloqueada
+                        e.impossivel
+                          ? TINTA_VERMELHA
+                          : bloqueada
                           ? TINTA_VERMELHA
                           : perigosa
                           ? '#9c4228'
@@ -1046,7 +738,9 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                       }
                       strokeWidth={e.principal ? 2.8 : 2.0}
                       strokeDasharray={
-                        bloqueada
+                        e.impossivel
+                          ? '1 7'
+                          : bloqueada
                           ? '2 6'
                           : !e.visivelJog && ehVisaoMestre
                           ? '4 5'
@@ -1260,8 +954,8 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
         </div>
 
         {/* Moldura de tinta clássica */}
-        <div className="pointer-events-none absolute inset-0 rounded-sm border-[3px] border-[#3a2a1a]/80" />
-        <div className="pointer-events-none absolute inset-[7px] rounded-[1px] border border-[#3a2a1a]/60" />
+        <div className="pointer-events-none absolute inset-0 rounded-sm border-[3px] border-tinta/80" />
+        <div className="pointer-events-none absolute inset-[7px] rounded-[1px] border border-tinta/60" />
 
         {/* Banner do Mestre quando em modo Pré-visualização de Jogador */}
         {mestre && previewJogador && (
@@ -1283,14 +977,14 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
         {/* Tooltip interativo flutuante da rota em hover */}
         {rotaHover && (
           <div
-            className="pointer-events-none absolute z-30 max-w-xs -translate-x-1/2 -translate-y-full rounded-lg border border-[#3a2a1a]/80 bg-[#f7efd7]/95 px-3 py-2 text-[#2c1e11] shadow-2xl backdrop-blur-sm"
+            className="pointer-events-none absolute z-30 max-w-xs -translate-x-1/2 -translate-y-full rounded-lg border border-tinta/80 bg-papel-claro/95 px-3 py-2 text-tinta-escura shadow-2xl backdrop-blur-sm"
             style={{
               left: limitar(rotaHover.screenX, 110, (containerRef.current?.clientWidth ?? 600) - 110),
               top: Math.max(16, rotaHover.screenY - 14),
               fontFamily: FONTE_MAPA,
             }}
           >
-            <div className="flex items-center justify-between gap-3 border-b border-[#3a2a1a]/20 pb-1">
+            <div className="flex items-center justify-between gap-3 border-b border-tinta/20 pb-1">
               <span className="text-sm font-bold tracking-wide" style={{ fontFamily: FONTE_MAPA_SC }}>
                 {rotaHover.de} ➔ {rotaHover.para}
               </span>
@@ -1306,11 +1000,11 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
             </div>
             <div className="mt-1.5 flex items-center gap-3 text-xs">
               <div>
-                <span className="italic text-[#6b5436]">Distância: </span>
+                <span className="italic text-tinta-suave">Distância: </span>
                 <strong>{rotaHover.distanciaKm} km</strong>
               </div>
               <div>
-                <span className="italic text-[#6b5436]">Perigo: </span>
+                <span className="italic text-tinta-suave">Perigo: </span>
                 <span className={`font-bold ${corPerigoHover?.texto}`}>
                   {rotaHover.perigo}/10 ({corPerigoHover?.rotulo})
                 </span>
@@ -1322,11 +1016,11 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
               </div>
             )}
             {ehVisaoMestre && (
-              <div className="mt-1 border-t border-[#3a2a1a]/15 pt-1 text-[10px] italic">
+              <div className="mt-1 border-t border-tinta/15 pt-1 text-[10px] italic">
                 {rotaHover.visivelParaJogador ? (
                   <span className="font-semibold text-emerald-800">✓ Revelada aos jogadores</span>
                 ) : (
-                  <span className="font-semibold text-[#8a3b2a]">👁️‍🗨️ Oculta dos jogadores (Névoa)</span>
+                  <span className="font-semibold text-tinta-rubra">👁️‍🗨️ Oculta dos jogadores (Névoa)</span>
                 )}
               </div>
             )}
@@ -1364,11 +1058,11 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
 
             {menuReinosAberto && (
               <div
-                className="absolute right-0 top-9 z-30 w-48 rounded-lg border border-[#3a2a1a]/80 bg-[#f7efd7] p-1.5 shadow-2xl backdrop-blur-sm"
+                className="absolute right-0 top-9 z-30 w-48 rounded-lg border border-tinta/80 bg-papel-claro p-1.5 shadow-2xl backdrop-blur-sm"
                 style={{ fontFamily: FONTE_MAPA }}
                 onPointerDown={(e) => e.stopPropagation()}
               >
-                <div className="border-b border-[#3a2a1a]/20 px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#6b5436]">
+                <div className="border-b border-tinta/20 px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-tinta-suave">
                   Navegar para Região
                 </div>
                 <div className="mt-1 flex flex-col gap-0.5">
@@ -1385,10 +1079,10 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                       key={r.id}
                       type="button"
                       onClick={() => focarReino(r.id)}
-                      className="flex cursor-pointer items-center justify-between rounded px-2 py-1 text-left text-xs text-[#3a2a1a] transition-colors hover:bg-[#3a2a1a]/10"
+                      className="flex cursor-pointer items-center justify-between rounded px-2 py-1 text-left text-xs text-tinta transition-colors hover:bg-tinta/10"
                     >
                       <span>{r.nome}</span>
-                      <Navigation className="h-3 w-3 text-[#6b5436]" />
+                      <Navigation className="h-3 w-3 text-tinta-suave" />
                     </button>
                   ))}
                 </div>
@@ -1457,7 +1151,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
         )}
       </div>
 
-      <p className="text-center font-sans-clean text-[11px] text-[#8c93a4]">
+      <p className="text-center font-sans-clean text-[11px] text-nevoa">
         Arraste para mover · use dois dedos ou roda do mouse para ampliar · passe o mouse nas rotas para ver distância e perigo · clique numa cidade para ver conexões
       </p>
 
@@ -1465,14 +1159,14 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
       <div className="grid gap-4 md:grid-cols-[1fr_2fr]">
         <Legenda />
         <div className="grimorio-card rounded-lg p-4">
-          <div className="mb-3 flex items-center justify-between border-b border-[#252b3a] pb-2">
-            <h3 className="font-cinzel text-sm font-bold text-[#f3e5ab]">Locais conhecidos</h3>
-            <span className="text-[11px] font-sans-clean text-[#8c93a4]">
-              {totalVisiveis} / {CIDADES_ATLAS.length} {ehVisaoMestre ? '(Visão Mestre: 100% acessível)' : ''}
+          <div className="mb-3 flex items-center justify-between border-b border-linha pb-2">
+            <h3 className="font-cinzel text-sm font-bold text-pergaminho">Locais conhecidos</h3>
+            <span className="text-[11px] font-sans-clean text-nevoa">
+              {totalVisiveis} / {cidadesBase.length} {ehVisaoMestre ? '(Visão Mestre: 100% acessível)' : ''}
             </span>
           </div>
           {totalVisiveis === 0 ? (
-            <p className="text-xs font-sans-clean text-[#8c93a4]">
+            <p className="text-xs font-sans-clean text-nevoa">
               Nenhum local foi revelado pelo Mestre ainda. Conforme a campanha avança, o mapa será preenchido.
             </p>
           ) : (
@@ -1486,8 +1180,8 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                     onClick={() => selecionar(c.atlas.nome, true)}
                     className={`cursor-pointer rounded border px-2 py-1 text-[11px] font-cinzel transition-colors ${
                       selecionada === c.atlas.nome
-                        ? 'border-amber-400/70 bg-amber-400/15 text-[#f3e5ab]'
-                        : 'border-[#2b3142] text-[#b8b2a0] hover:border-amber-500/50 hover:text-[#f3e5ab]'
+                        ? 'border-amber-400/70 bg-amber-400/15 text-pergaminho'
+                        : 'border-linha-forte text-texto-2 hover:border-amber-500/50 hover:text-pergaminho'
                     }`}
                   >
                     {c.atlas.nome}
@@ -1496,7 +1190,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
             </div>
           )}
           {mestre && semCoordenadas.length > 0 && (
-            <p className="mt-3 border-t border-[#252b3a] pt-2 text-[11px] font-sans-clean text-amber-300/80">
+            <p className="mt-3 border-t border-linha pt-2 text-[11px] font-sans-clean text-amber-300/80">
               Sem posição no atlas: {semCoordenadas.map((c) => c.nome).join(', ')}.
             </p>
           )}
@@ -1506,245 +1200,3 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
   );
 };
 
-// ---------------------------------------------------------------------------
-// Subcomponentes de interface
-// ---------------------------------------------------------------------------
-const BotaoMapa: React.FC<{
-  rotulo: string;
-  onClick: () => void;
-  ativo?: boolean;
-  children: React.ReactNode;
-}> = ({ rotulo, onClick, ativo = false, children }) => (
-  <button
-    type="button"
-    aria-label={rotulo}
-    title={rotulo}
-    onClick={onClick}
-    onPointerDown={(e) => e.stopPropagation()}
-    className={`flex h-8 cursor-pointer items-center justify-center rounded border px-2 shadow transition-colors ${
-      ativo
-        ? 'border-amber-600 bg-amber-400 text-[#1b1208] font-bold shadow-amber-500/30'
-        : 'border-[#3a2a1a]/70 bg-[#f3e7c3]/90 text-[#3a2a1a] hover:bg-[#fff6d6]'
-    }`}
-  >
-    {children}
-  </button>
-);
-
-const Legenda: React.FC = () => (
-  <div className="grimorio-card rounded-lg p-4">
-    <h3 className="mb-3 border-b border-[#252b3a] pb-2 font-cinzel text-sm font-bold text-[#f3e5ab]">Legenda</h3>
-    <ul className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] font-sans-clean text-[#b8b2a0]">
-      {(['capital', 'cidade', 'vila', 'porto', 'fortaleza'] as TipoCidade[]).map((t) => (
-        <li key={t} className="flex items-center gap-2">
-          <svg width="22" height="22" viewBox="-12 -12 24 24" aria-hidden="true" className="shrink-0 rounded-sm bg-[#e9d9ab]">
-            <GlifoCidade tipo={t} parcial={false} />
-          </svg>
-          {ROTULO_TIPO[t]}
-        </li>
-      ))}
-      <li className="flex items-center gap-2">
-        <svg width="22" height="22" viewBox="-12 -12 24 24" aria-hidden="true" className="shrink-0 rounded-sm bg-[#e9d9ab]">
-          <GlifoCidade tipo="cidade" parcial />
-        </svg>
-        Só o nome é conhecido
-      </li>
-      <li className="flex items-center gap-2">
-        <svg width="22" height="10" aria-hidden="true" className="shrink-0">
-          <line x1="0" y1="5" x2="22" y2="5" stroke="#261b10" strokeWidth="2.8" />
-        </svg>
-        Estrada principal
-      </li>
-      <li className="flex items-center gap-2">
-        <svg width="22" height="10" aria-hidden="true" className="shrink-0">
-          <line x1="0" y1="5" x2="22" y2="5" stroke="#453220" strokeWidth="2.0" strokeDasharray="5 3" />
-        </svg>
-        Estrada secundária
-      </li>
-      <li className="flex items-center gap-2">
-        <svg width="22" height="10" aria-hidden="true" className="shrink-0">
-          <line x1="0" y1="5" x2="22" y2="5" stroke="#334155" strokeWidth="2.2" strokeDasharray="3 4" strokeLinecap="round" />
-        </svg>
-        Rota marítima
-      </li>
-      <li className="flex items-center gap-2">
-        <svg width="22" height="10" aria-hidden="true" className="shrink-0">
-          <line x1="0" y1="5" x2="22" y2="5" stroke="#8a3b2a" strokeWidth="2.0" strokeDasharray="2 4" strokeLinecap="round" />
-        </svg>
-        Rota bloqueada / perigosa
-      </li>
-      <li className="col-span-2 flex items-center gap-2 text-[#8c93a4]">
-        <span className="inline-block h-3 w-3 shrink-0 rounded-sm border border-[#6b5436]/60 bg-[#e3d3a6]" />
-        Terra Incógnita — reino sob névoa
-      </li>
-    </ul>
-  </div>
-);
-
-interface FichaCidadeProps {
-  atual: CidadeResolvida;
-  reino?: string;
-  rotasDaCidade: { destino: string; maritima: boolean; info?: RotaConexao; visivel: boolean; distanciaKm: number }[];
-  mestre: boolean;
-  podeAlterar: boolean;
-  salvando: boolean;
-  erro: string | null;
-  onFechar: () => void;
-  onIr: (nome: string) => void;
-  onAlterar: (nome: string, nivel: NivelVisibilidade) => void;
-}
-
-const FichaCidade: React.FC<FichaCidadeProps> = ({
-  atual,
-  reino,
-  rotasDaCidade,
-  mestre,
-  podeAlterar,
-  salvando,
-  erro,
-  onFechar,
-  onIr,
-  onAlterar,
-}) => {
-  const { atlas: a, api, vis } = atual;
-  const completa = vis === 'INFORMACOES_COMPLETAS';
-  const ocultaParaJogador = vis === 'OCULTO';
-  const niveis: NivelVisibilidade[] = ['OCULTO', 'ROTA_E_NOME_APENAS', 'INFORMACOES_COMPLETAS'];
-
-  return (
-    <aside
-      className="fixed inset-x-0 bottom-0 z-40 max-h-[75vh] w-full overflow-y-auto rounded-t-2xl border-t-2 border-[#3a2a1a] bg-[#f5ecce] p-4 text-[#3a2a1a] shadow-2xl transition-transform sm:absolute sm:inset-auto sm:left-4 sm:top-4 sm:bottom-auto sm:max-h-[80%] sm:w-80 sm:rounded-lg sm:border sm:border-[#3a2a1a]/80 sm:bg-[#f3e7c3]/95 sm:p-3.5"
-      style={{ fontFamily: FONTE_MAPA }}
-      onPointerDown={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
-    >
-      {/* Pill de arraste visual no mobile */}
-      <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-[#3a2a1a]/25 sm:hidden" />
-
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <h4 className="text-xl font-bold leading-tight" style={{ fontFamily: FONTE_MAPA_SC }}>
-            {a.nome}
-          </h4>
-          <p className="text-xs italic text-[#6b5436]">
-            {ROTULO_TIPO[a.tipo]}
-            {reino && a.reino !== 'ilhas' ? ` · ${a.reino === 'campos' ? reino : `Reino de ${reino}`}` : ''}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onFechar}
-          aria-label="Fechar"
-          className="cursor-pointer rounded p-1 text-[#6b5436] hover:bg-[#3a2a1a]/10"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      {mestre && ocultaParaJogador && (
-        <p className="mt-2 rounded bg-[#3a2a1a]/10 px-2 py-1 text-[11px] italic">Oculta para os jogadores.</p>
-      )}
-
-      {completa && api && (
-        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          {api.regiao && (
-            <>
-              <dt className="italic text-[#6b5436]">Bioma</dt>
-              <dd>{formatarEnum(api.regiao)}</dd>
-            </>
-          )}
-          {api.geologia && (
-            <>
-              <dt className="italic text-[#6b5436]">Solo</dt>
-              <dd>{formatarEnum(api.geologia)}</dd>
-            </>
-          )}
-          {api.aquifero && (
-            <>
-              <dt className="italic text-[#6b5436]">Água</dt>
-              <dd>{formatarEnum(api.aquifero)}</dd>
-            </>
-          )}
-          {typeof api.lojas === 'number' && (
-            <>
-              <dt className="italic text-[#6b5436]">Lojas</dt>
-              <dd>{api.lojas}</dd>
-            </>
-          )}
-        </dl>
-      )}
-      {vis === 'ROTA_E_NOME_APENAS' && (
-        <p className="mt-3 text-sm italic text-[#6b5436]">Apenas o nome e as rotas desta cidade são conhecidos.</p>
-      )}
-      {completa && !api && (
-        <p className="mt-3 text-sm italic text-[#6b5436]">Sem dados adicionais do servidor para este local.</p>
-      )}
-
-      {rotasDaCidade.length > 0 && (
-        <div className="mt-3 border-t border-[#3a2a1a]/25 pt-2">
-          <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[#6b5436]">
-            Rotas Conectadas ({rotasDaCidade.length})
-          </p>
-          <ul className="space-y-1 text-sm">
-            {rotasDaCidade.map((r) => {
-              const perigo = r.info?.perigo ?? (r.maritima ? 4 : 3);
-              const corP = getCorPerigo(perigo);
-              return (
-                <li key={`${r.destino}-${r.maritima}`}>
-                  <button
-                    type="button"
-                    onClick={() => onIr(r.destino)}
-                    className="flex w-full cursor-pointer items-center justify-between rounded px-1.5 py-1 text-left transition-colors hover:bg-[#3a2a1a]/10"
-                  >
-                    <div>
-                      <span className="font-semibold">{r.visivel ? r.destino : '??? Desconhecido'}</span>
-                      <span className="text-xs italic text-[#6b5436] block">
-                        {r.maritima ? '⛵ por mar' : '🛣️ por terra'} · {r.distanciaKm} km
-                        {r.info?.bloqueada ? ' · bloqueada' : ''}
-                      </span>
-                    </div>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${corP.bg} ${corP.texto} border ${corP.borda}`}>
-                      Perigo {perigo}/10
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      {mestre && podeAlterar && (
-        <div className="mt-3 border-t border-[#3a2a1a]/25 pt-2">
-          <p className="mb-1.5 flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-[#6b5436]">
-            {ocultaParaJogador ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            Visão dos jogadores
-          </p>
-          <div className="flex flex-col gap-1">
-            {niveis.map((n) => (
-              <button
-                key={n}
-                type="button"
-                disabled={salvando || vis === n}
-                onClick={() => onAlterar(a.nome, n)}
-                className={`cursor-pointer rounded border px-2 py-1 text-left text-xs transition-colors disabled:cursor-default ${
-                  vis === n
-                    ? 'border-[#3a2a1a] bg-[#3a2a1a] text-[#f3e7c3]'
-                    : 'border-[#3a2a1a]/40 hover:bg-[#3a2a1a]/10 disabled:opacity-50'
-                }`}
-              >
-                {ROTULO_VISIBILIDADE[n]}
-              </button>
-            ))}
-          </div>
-          {erro && <p className="mt-1.5 text-xs text-[#8a3b2a]">{erro}</p>}
-        </div>
-      )}
-    </aside>
-  );
-};
-
-function formatarEnum(valor: string): string {
-  const t = valor.replace(/_/g, ' ').toLowerCase();
-  return t.charAt(0).toUpperCase() + t.slice(1);
-}

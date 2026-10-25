@@ -1,59 +1,79 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --bg-dark: #090a0f;
-    --bg-card: #12141c;
-    --bg-card-hover: #191c27;
-    --bg-elevated: #1f2331;
-    --border-dull: #252a38;
-    --border-gold: #c69219;
-    --border-gold-glow: rgba(212, 175, 55, 0.4);
-    --gold-primary: #d4af37;
-    --gold-bright: #ffd700;
-    --gold-muted: #9e782f;
-    --text-parchment: #e6dfcf;
-    --text-muted: #8c93a4;
-  }
+/*
+ * Paleta de Thalúria. Cada cor vira utilitário do Tailwind
+ * (ex.: --color-nevoa -> text-nevoa, bg-nevoa/20, border-nevoa).
+ */
+@theme {
+  /* Superfícies, do mais fundo ao mais elevado */
+  --color-fundo: #090a0f;
+  --color-abismo: #0a0c12;
+  --color-painel: #11141d;
+  --color-painel-alto: #171b28;
 
+  /* Contornos */
+  --color-linha: #232837;
+  --color-linha-forte: #343a4d;
+
+  /* Texto */
+  --color-pergaminho: #f3e5ab;
+  --color-texto: #e6dfcf;
+  --color-texto-2: #bfb9a8;
+  --color-nevoa: #8c93a4;
+  --color-apagado: #5d6577;
+
+  /* Ouro */
+  --color-ouro: #d4af37;
+  --color-ouro-escuro: #9e782f;
+
+  /* Tinta e papel do atlas */
+  --color-tinta: #3a2a1a;
+  --color-tinta-suave: #6b5436;
+  --color-tinta-rubra: #8a3b2a;
+  --color-tinta-escura: #1b1208;
+  --color-papel: #f3e7c3;
+  --color-papel-velho: #e9d9ab;
+  --color-papel-nevoa: #e3d3a6;
+  --color-papel-claro: #f7efd7;
+
+  --font-cinzel: 'Cinzel', serif;
+  --font-sans-clean: 'Plus Jakarta Sans', sans-serif;
+}
+
+@layer base {
   body {
-    background-color: var(--bg-dark);
-    color: var(--text-parchment);
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--color-fundo);
+    color: var(--color-texto);
+    font-family: var(--font-sans-clean);
     min-height: 100vh;
     overflow-x: hidden;
-    background-image: 
-      radial-gradient(ellipse at 50% 0%, rgba(212, 175, 55, 0.08) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 90%, rgba(138, 43, 226, 0.04) 0%, transparent 50%),
-      radial-gradient(ellipse at 10% 70%, rgba(255, 69, 0, 0.04) 0%, transparent 50%);
+    background-image: radial-gradient(ellipse at 50% 0%, rgba(212, 175, 55, 0.06) 0%, transparent 55%);
     background-attachment: fixed;
+    -webkit-tap-highlight-color: transparent;
   }
 
   h1, h2, h3, h4, .font-fantasy {
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-cinzel);
     letter-spacing: 0.04em;
+  }
+
+  /* Foco visível e consistente para teclado */
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-ouro) 70%, transparent);
+    outline-offset: 2px;
   }
 }
 
-/* Custom Medieval & Dark Fantasy Utilities */
-.font-cinzel {
-  font-family: 'Cinzel', serif;
-}
-
+/* Utilitários de tipografia */
 .font-decorative {
   font-family: 'Cinzel Decorative', 'Cinzel', serif;
 }
 
-.font-sans-clean {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-}
-
-/* Painéis Estilo Grimório / Pergaminho Encadernado */
+/* Painéis: superfície sóbria com um fio dourado no topo */
 .grimorio-card {
-  background: linear-gradient(145deg, rgba(21, 24, 34, 0.95) 0%, rgba(14, 16, 23, 0.98) 100%);
-  border: 1px solid rgba(212, 175, 55, 0.22);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(212, 175, 55, 0.15) inset;
-  backdrop-filter: blur(8px);
+  background: var(--color-painel);
+  border: 1px solid color-mix(in srgb, var(--color-ouro) 16%, var(--color-linha));
+  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.7);
   position: relative;
 }
 
@@ -61,16 +81,35 @@
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
+  left: 12%;
+  right: 12%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.6), transparent);
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.45), transparent);
 }
 
 .pergaminho-card {
-  background: linear-gradient(135deg, #1b1713 0%, #13100d 100%);
-  border: 1px solid #453826;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(212, 175, 55, 0.1) inset;
+  background: #16130f;
+  border: 1px solid #3a2f20;
+  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.8);
+}
+
+/* Campo de formulário padrão (input, select, textarea) */
+.campo {
+  width: 100%;
+  background: var(--color-abismo);
+  color: var(--color-pergaminho);
+  border: 1px solid var(--color-linha-forte);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.campo:focus {
+  border-color: var(--color-ouro);
+}
+.campo[aria-invalid='true'] {
+  border-color: rgba(239, 68, 68, 0.7);
 }
 
 /* Textos e Brilhos Dourados */
@@ -106,17 +145,16 @@
 .btn-gold {
   background: linear-gradient(180deg, #d4af37 0%, #a67c1e 100%);
   color: #0d0f12;
-  font-family: 'Cinzel', serif;
+  font-family: var(--font-cinzel);
   font-weight: 700;
   border: 1px solid #f6d268;
-  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35), 0 1px 0 rgba(255, 255, 255, 0.4) inset;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset;
   transition: all 0.2s ease-in-out;
 }
 
 .btn-gold:hover {
   background: linear-gradient(180deg, #f0c94d 0%, #bd8e24 100%);
-  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.55), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
-  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
 }
 
 .btn-gold:active {
@@ -129,15 +167,13 @@
   color: #e6dfcf;
   font-family: 'Cinzel', serif;
   border: 1px solid rgba(212, 175, 55, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   transition: all 0.2s ease-in-out;
 }
 
 .btn-dark:hover {
   border-color: rgba(212, 175, 55, 0.7);
   background: linear-gradient(180deg, #2e3447 0%, #1c202d 100%);
-  box-shadow: 0 0 12px rgba(212, 175, 55, 0.2);
-  transform: translateY(-1px);
+  
 }
 
 /* Moldura e Cantos Ornamentais */

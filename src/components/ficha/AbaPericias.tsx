@@ -49,8 +49,8 @@ function validar(form: FormPericia): Record<string, string> {
 }
 
 const classeCampo = (erro?: string) =>
-  `w-full bg-[#090b10] text-[#f3e5ab] rounded border px-3 py-2 text-sm outline-none focus:border-amber-400 ${
-    erro ? 'border-red-500/70' : 'border-[#383d4e]'
+  `w-full bg-abismo text-pergaminho rounded border px-3 py-2 text-sm outline-none focus:border-amber-400 ${
+    erro ? 'border-red-500/70' : 'border-linha-forte'
   }`;
 
 export interface AbaPericiasProps {
@@ -152,14 +152,14 @@ export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtual
 
   return (
     <div className="space-y-4">
-      <div className="p-4 bg-gradient-to-r from-amber-950/30 via-[#161a26] to-black/40 border border-amber-500/40 rounded-xl space-y-3">
+      <div className="p-4 bg-gradient-to-r from-amber-950/30 via-painel to-black/40 border border-amber-500/40 rounded-xl space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="flex items-center gap-2 font-cinzel text-sm font-bold text-amber-300 uppercase tracking-widest">
               <Award className="w-5 h-5 text-amber-400" />
               Perícias ({pericias.length})
             </h3>
-            <p className="text-xs text-[#8c93a4] font-sans-clean mt-1">
+            <p className="text-xs text-nevoa font-sans-clean mt-1">
               <strong>Regra de mesa:</strong> Grau 0 = 2d20 (pior) + 0. Grau ≥ 1 = (Grau)d20 (melhor) + Maestria × 5.
             </p>
           </div>
@@ -180,14 +180,14 @@ export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtual
         <div className="flex flex-col sm:flex-row gap-2">
           <label className="relative flex-1">
             <span className="sr-only">Buscar perícia</span>
-            <Search className="w-4 h-4 text-[#8c93a4] absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
+            <Search className="w-4 h-4 text-nevoa absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
             <input
               id="input-buscar-pericia"
               type="search"
               value={filtro}
               onChange={(e) => setFiltro(e.target.value)}
               placeholder="Buscar por nome ou descrição…"
-              className="w-full bg-[#090b10] text-[#f3e5ab] rounded-lg border border-[#383d4e] pl-9 pr-3 py-2 text-sm outline-none focus:border-amber-400"
+              className="w-full bg-abismo text-pergaminho rounded-lg border border-linha-forte pl-9 pr-3 py-2 text-sm outline-none focus:border-amber-400"
             />
           </label>
           <Button
@@ -205,7 +205,7 @@ export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtual
       </div>
 
       {grupos.length === 0 ? (
-        <p className="text-center text-sm text-[#8c93a4] font-sans-clean py-8">Nenhuma perícia encontrada para “{filtro}”.</p>
+        <p className="text-center text-sm text-nevoa font-sans-clean py-8">Nenhuma perícia encontrada para “{filtro}”.</p>
       ) : (
         grupos.map((g) => (
           <SecaoRecolhivel
@@ -222,21 +222,21 @@ export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtual
                 <article
                   key={p.pericia}
                   className={`p-3.5 rounded-lg border flex flex-col justify-between gap-3 transition-colors hover:border-amber-500/50 ${
-                    p.personalizada ? 'border-purple-600/50 bg-purple-950/15' : 'border-[#262c3c] bg-[#10131c]'
+                    p.personalizada ? 'border-purple-600/50 bg-purple-950/15' : 'border-linha bg-painel'
                   }`}
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <h4 className="font-cinzel text-xs font-bold text-[#f3e5ab]">{p.nome}</h4>
+                      <h4 className="font-cinzel text-xs font-bold text-pergaminho">{p.nome}</h4>
                       {p.personalizada && <Badge variant="purple">Personalizada</Badge>}
                     </div>
-                    <p className="text-[11px] text-[#8c93a4] font-sans-clean line-clamp-2" title={p.descricao || undefined}>
+                    <p className="text-[11px] text-nevoa font-sans-clean line-clamp-2" title={p.descricao || undefined}>
                       {p.descricao || 'Sem descrição.'}
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2 bg-[#0a0c12] px-2 py-1.5 rounded border border-[#232a3a]">
-                      <span className="text-[10px] font-cinzel text-[#8c93a4]">Grau {p.grau ?? 0} · M+{(p.maestria ?? 0) * 5}</span>
+                    <div className="flex items-center justify-between gap-2 bg-abismo px-2 py-1.5 rounded border border-linha">
+                      <span className="text-[10px] font-cinzel text-nevoa">Grau {p.grau ?? 0} · M+{(p.maestria ?? 0) * 5}</span>
                       <span className="flex items-center gap-1 text-xs font-mono text-amber-300 font-bold">
                         <Dices className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                         {dadoDePericia(p.grau ?? 0, p.maestria ?? 0)}
@@ -318,7 +318,7 @@ export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtual
                 </div>
               </>
             ) : (
-              <p className="text-[11px] text-[#8c93a4] font-sans-clean">
+              <p className="text-[11px] text-nevoa font-sans-clean">
                 Perícia canônica de <strong className="text-amber-300">{form.atributoBase}</strong>: nome e atributo são fixos; ajuste grau, maestria e anotações.
               </p>
             )}
@@ -362,7 +362,7 @@ export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtual
             </div>
 
             <div className="p-3 bg-amber-950/20 border border-amber-600/30 rounded-lg text-center">
-              <span className="text-[10px] font-cinzel text-[#8c93a4] block">Rolagem na mesa</span>
+              <span className="text-[10px] font-cinzel text-nevoa block">Rolagem na mesa</span>
               <span className="text-sm font-mono font-bold text-amber-300">
                 {erros.grau ? '—' : dadoDePericia(Number(form.grau), form.maestria)}
               </span>
@@ -385,7 +385,7 @@ export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtual
               {tentouSalvar && erros.descricao && <p className="text-[11px] text-red-300 mt-1">{erros.descricao}</p>}
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-3 border-t border-[#252b3a]">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-3 border-t border-linha">
               <Button type="button" variant="ghost" size="sm" onClick={() => setForm(null)} disabled={salvando}>
                 Cancelar
               </Button>

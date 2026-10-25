@@ -125,13 +125,13 @@ export const ControleMundoPage: React.FC = () => {
   return (
     <div className="space-y-6 text-left">
       {/* Cabeçalho da página */}
-      <div className="flex flex-col gap-4 border-b border-[#252b3a] pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-linha pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-3 font-cinzel text-2xl font-bold text-[#f3e5ab]">
+          <h1 className="flex items-center gap-3 font-cinzel text-2xl font-bold text-pergaminho">
             <Globe className="h-6 w-6 text-amber-400" />
             <span>Controle de Mundo &amp; Fog-of-War</span>
           </h1>
-          <p className="mt-1 font-sans-clean text-xs text-[#8c93a4]">
+          <p className="mt-1 font-sans-clean text-xs text-nevoa">
             Painel do Mestre: gerencie a névoa do mapa, rotas comerciais, capítulos da wiki e monstros revelados para os jogadores.
           </p>
         </div>
@@ -148,14 +148,14 @@ export const ControleMundoPage: React.FC = () => {
       </div>
 
       {/* Abas Superiores de Navegação */}
-      <div className="flex flex-wrap gap-2 border-b border-[#232838] pb-2">
+      <div className="flex flex-wrap gap-2 border-b border-linha pb-2">
         <button
           type="button"
           onClick={() => setAbaAtiva('mapa')}
           className={`flex cursor-pointer items-center gap-2 rounded-t-lg border-b-2 px-4 py-2.5 font-cinzel text-sm font-semibold transition-all ${
             abaAtiva === 'mapa'
               ? 'border-amber-400 bg-amber-400/10 text-amber-300'
-              : 'border-transparent text-[#8c93a4] hover:border-amber-500/40 hover:text-[#f3e5ab]'
+              : 'border-transparent text-nevoa hover:border-amber-500/40 hover:text-pergaminho'
           }`}
         >
           <MapIcon className="h-4 w-4" />
@@ -171,7 +171,7 @@ export const ControleMundoPage: React.FC = () => {
           className={`flex cursor-pointer items-center gap-2 rounded-t-lg border-b-2 px-4 py-2.5 font-cinzel text-sm font-semibold transition-all ${
             abaAtiva === 'wiki'
               ? 'border-amber-400 bg-amber-400/10 text-amber-300'
-              : 'border-transparent text-[#8c93a4] hover:border-amber-500/40 hover:text-[#f3e5ab]'
+              : 'border-transparent text-nevoa hover:border-amber-500/40 hover:text-pergaminho'
           }`}
         >
           <ScrollText className="h-4 w-4" />
@@ -187,7 +187,7 @@ export const ControleMundoPage: React.FC = () => {
           className={`flex cursor-pointer items-center gap-2 rounded-t-lg border-b-2 px-4 py-2.5 font-cinzel text-sm font-semibold transition-all ${
             abaAtiva === 'bestiario'
               ? 'border-cyan-400 bg-cyan-400/10 text-cyan-300'
-              : 'border-transparent text-[#8c93a4] hover:border-cyan-500/40 hover:text-[#f3e5ab]'
+              : 'border-transparent text-nevoa hover:border-cyan-500/40 hover:text-pergaminho'
           }`}
         >
           <BookOpen className="h-4 w-4" />
@@ -212,13 +212,13 @@ export const ControleMundoPage: React.FC = () => {
         <div className="space-y-5">
           {/* Ações em lote por reino */}
           <Card variant="grimorio" className="p-4 sm:p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[#252b3a] pb-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-linha pb-3">
               <div>
-                <h3 className="flex items-center gap-2 font-cinzel text-sm font-bold text-[#f3e5ab]">
+                <h3 className="flex items-center gap-2 font-cinzel text-sm font-bold text-pergaminho">
                   <Sparkles className="h-4 w-4 text-amber-400" />
                   <span>Ações em Lote por Reino (Fog-of-War Instantâneo)</span>
                 </h3>
-                <p className="mt-0.5 font-sans-clean text-xs text-[#8c93a4]">
+                <p className="mt-0.5 font-sans-clean text-xs text-nevoa">
                   Revele ou oculte todas as cidades e rotas de uma província inteira com um único clique.
                 </p>
               </div>
@@ -255,7 +255,7 @@ export const ControleMundoPage: React.FC = () => {
                 return (
                   <div
                     key={r.id}
-                    className="flex items-center justify-between rounded border border-[#232838] bg-[#0c0d12]/90 p-2.5"
+                    className="flex items-center justify-between rounded border border-linha bg-abismo/90 p-2.5"
                   >
                     <div>
                       <div className="flex items-center gap-1.5">
@@ -263,11 +263,11 @@ export const ControleMundoPage: React.FC = () => {
                           className="inline-block h-2.5 w-2.5 rounded-full"
                           style={{ backgroundColor: r.cor }}
                         />
-                        <span className="font-cinzel text-xs font-bold text-[#f3e5ab]">
+                        <span className="font-cinzel text-xs font-bold text-pergaminho">
                           {r.nome}
                         </span>
                       </div>
-                      <span className="font-sans-clean text-[10px] text-[#8c93a4]">
+                      <span className="font-sans-clean text-[10px] text-nevoa">
                         {reveladas} / {total} locais revelados
                       </span>
                     </div>
@@ -300,13 +300,13 @@ export const ControleMundoPage: React.FC = () => {
 
           {/* O componente interativo do Mapa de Thalúria */}
           <Card variant="grimorio" className="p-4 sm:p-6">
-            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-[#252b3a] pb-3">
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-linha pb-3">
               <div>
-                <h3 className="flex items-center gap-2 font-cinzel text-base font-bold text-[#f3e5ab]">
+                <h3 className="flex items-center gap-2 font-cinzel text-base font-bold text-pergaminho">
                   <MapIcon className="h-4 w-4 text-emerald-400" />
                   <span>Cartografia de Thalúria &amp; Rotas Comerciais</span>
                 </h3>
-                <p className="font-sans-clean text-xs text-[#8c93a4]">
+                <p className="font-sans-clean text-xs text-nevoa">
                   Como Mestre, você enxerga todas as cidades e rotas. Clique em uma cidade para abrir sua ficha e alterar o que os jogadores enxergam.
                 </p>
               </div>
@@ -332,13 +332,13 @@ export const ControleMundoPage: React.FC = () => {
       {/* ----------------- ABA 2: COMPÊNDIO DA WIKI ----------------- */}
       {abaAtiva === 'wiki' && (
         <Card variant="grimorio" className="p-6">
-          <div className="mb-4 flex items-center justify-between border-b border-[#252b3a] pb-3">
+          <div className="mb-4 flex items-center justify-between border-b border-linha pb-3">
             <div>
-              <h3 className="flex items-center gap-2 font-cinzel text-base font-bold text-[#f3e5ab]">
+              <h3 className="flex items-center gap-2 font-cinzel text-base font-bold text-pergaminho">
                 <ScrollText className="h-4 w-4 text-amber-400" />
                 <span>Capítulos da Wiki (Fog-of-War Textual)</span>
               </h3>
-              <p className="mt-0.5 font-sans-clean text-xs text-[#8c93a4]">
+              <p className="mt-0.5 font-sans-clean text-xs text-nevoa">
                 Capítulos bloqueados aparecem com cadeado na enciclopédia dos jogadores até que você os libere.
               </p>
             </div>
@@ -353,11 +353,11 @@ export const ControleMundoPage: React.FC = () => {
               return (
                 <div
                   key={cap}
-                  className="flex items-center justify-between rounded border border-[#232838] bg-[#0c0d12] p-3.5 transition-colors hover:border-[#353d54]"
+                  className="flex items-center justify-between rounded border border-linha bg-abismo p-3.5 transition-colors hover:border-linha-forte"
                 >
                   <div>
-                    <strong className="block font-cinzel text-xs text-[#f3e5ab]">{cap}</strong>
-                    <span className="font-sans-clean text-[10px] text-[#8c93a4]">
+                    <strong className="block font-cinzel text-xs text-pergaminho">{cap}</strong>
+                    <span className="font-sans-clean text-[10px] text-nevoa">
                       {liberado ? '✓ Acessível no compêndio do jogador' : '🔒 Oculto sob névoa de lore'}
                     </span>
                   </div>
@@ -381,13 +381,13 @@ export const ControleMundoPage: React.FC = () => {
       {/* ----------------- ABA 3: BESTIÁRIO REGIONAL ----------------- */}
       {abaAtiva === 'bestiario' && (
         <Card variant="grimorio" className="p-6">
-          <div className="mb-4 flex items-center justify-between border-b border-[#252b3a] pb-3">
+          <div className="mb-4 flex items-center justify-between border-b border-linha pb-3">
             <div>
-              <h3 className="flex items-center gap-2 font-cinzel text-base font-bold text-[#f3e5ab]">
+              <h3 className="flex items-center gap-2 font-cinzel text-base font-bold text-pergaminho">
                 <BookOpen className="h-4 w-4 text-cyan-400" />
                 <span>Revelação de Feras &amp; Criaturas do Bestiário</span>
               </h3>
-              <p className="mt-0.5 font-sans-clean text-xs text-[#8c93a4]">
+              <p className="mt-0.5 font-sans-clean text-xs text-nevoa">
                 Criaturas não reveladas aparecem como sombras misteriosas na enciclopédia dos jogadores.
               </p>
             </div>
@@ -400,10 +400,10 @@ export const ControleMundoPage: React.FC = () => {
             {conteudo?.bestiario?.map((m) => (
               <div
                 key={m.id}
-                className="flex items-center justify-between rounded border border-[#232838] bg-[#0c0d12] p-3.5 transition-colors hover:border-[#353d54]"
+                className="flex items-center justify-between rounded border border-linha bg-abismo p-3.5 transition-colors hover:border-linha-forte"
               >
                 <div>
-                  <strong className="block font-cinzel text-xs text-[#f3e5ab]">{m.nome}</strong>
+                  <strong className="block font-cinzel text-xs text-pergaminho">{m.nome}</strong>
                   <span className="font-cinzel text-[10px] text-amber-500/80">
                     {m.regiao || 'Bioma Geral'} • {m.elemento || 'Físico'}
                   </span>

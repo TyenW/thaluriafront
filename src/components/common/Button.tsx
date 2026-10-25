@@ -18,7 +18,7 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center gap-2 font-cinzel rounded font-bold transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none';
+  const baseStyles = 'inline-flex items-center justify-center gap-2 font-cinzel rounded-md font-bold transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none';
 
   const sizeStyles = {
     sm: 'text-xs px-3 py-1.5',
@@ -29,9 +29,9 @@ export const Button: React.FC<ButtonProps> = ({
   const variantStyles = {
     gold: 'btn-gold',
     dark: 'btn-dark',
-    outline: 'border border-[#d4af37]/40 text-[#f3e5ab] hover:border-[#d4af37] hover:bg-[#d4af37]/10 active:bg-[#d4af37]/20',
+    outline: 'border border-ouro/40 text-pergaminho hover:border-ouro hover:bg-ouro/10 active:bg-ouro/20',
     danger: 'bg-gradient-to-b from-red-700 to-red-900 text-red-100 border border-red-500/50 hover:from-red-600 hover:to-red-800 shadow-lg shadow-red-950/50',
-    ghost: 'text-[#c5c6c7] hover:text-[#f3e5ab] hover:bg-white/5 active:bg-white/10',
+    ghost: 'text-texto-2 hover:text-pergaminho hover:bg-white/5 active:bg-white/10',
   }[variant];
 
   return (

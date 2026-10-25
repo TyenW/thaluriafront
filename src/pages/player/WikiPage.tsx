@@ -108,13 +108,13 @@ export const WikiPage: React.FC = () => {
 
   return (
     <div className="space-y-6 text-left">
-      <div className="border-b border-[#252b3a] pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="border-b border-linha pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-cinzel font-bold text-[#f3e5ab] flex items-center gap-3">
+          <h1 className="text-2xl font-cinzel font-bold text-pergaminho flex items-center gap-3">
             <ScrollText className="w-6 h-6 text-amber-400" />
             <span>Documentação & Wiki de Thalúria</span>
           </h1>
-          <p className="text-xs text-[#8c93a4] font-sans-clean mt-1">
+          <p className="text-xs text-nevoa font-sans-clean mt-1">
             Conhecimento do mundo desbloqueado progressivamente pelo Mestre durante a campanha.
           </p>
         </div>
@@ -141,13 +141,13 @@ export const WikiPage: React.FC = () => {
                 onClick={() => setCapituloSelecionado(cap)}
                 className={`w-full text-left p-3.5 rounded-lg border transition-all cursor-pointer flex items-start justify-between gap-3 ${
                   selecionado
-                    ? 'bg-[#d4af37]/15 border-[#d4af37]/60 shadow-[0_0_12px_rgba(212,175,55,0.15)]'
-                    : 'bg-[#12141c] border-[#252b3a] hover:border-[#3d465c] hover:bg-[#181b26]'
+                    ? 'bg-ouro/15 border-ouro/60 shadow-[0_0_12px_rgba(212,175,55,0.15)]'
+                    : 'bg-painel border-linha hover:border-linha-forte hover:bg-painel-alto'
                 }`}
               >
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] px-1.5 py-0.2 bg-white/5 text-gray-400 rounded font-cinzel">
+                    <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-gray-400 rounded font-cinzel">
                       {cap.categoria}
                     </span>
                     {liberado ? (
@@ -160,10 +160,10 @@ export const WikiPage: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <h4 className={`text-sm font-cinzel font-bold ${selecionado ? 'text-[#f3e5ab]' : 'text-[#c5c6c7]'}`}>
+                  <h4 className={`text-sm font-cinzel font-bold ${selecionado ? 'text-pergaminho' : 'text-texto-2'}`}>
                     {cap.titulo}
                   </h4>
-                  <p className="text-xs text-[#8c93a4] font-sans-clean line-clamp-1 mt-0.5">
+                  <p className="text-xs text-nevoa font-sans-clean line-clamp-1 mt-0.5">
                     {cap.subtitulo}
                   </p>
                 </div>
@@ -177,7 +177,7 @@ export const WikiPage: React.FC = () => {
           <Card variant="grimorio" className="p-6 sm:p-8 min-h-[450px]">
             {isLiberado(capituloSelecionado.id) ? (
               <div className="space-y-6">
-                <div className="border-b border-[#252b3a] pb-4">
+                <div className="border-b border-linha pb-4">
                   <div className="flex items-center gap-2 text-xs text-amber-500 font-cinzel mb-1">
                     <BookOpen className="w-4 h-4" />
                     <span>{capituloSelecionado.categoria}</span>
@@ -185,7 +185,7 @@ export const WikiPage: React.FC = () => {
                   <h2 className="text-2xl font-cinzel font-bold gold-gradient-text">
                     {capituloSelecionado.titulo}
                   </h2>
-                  <p className="text-sm text-[#8c93a4] font-sans-clean mt-1">
+                  <p className="text-sm text-nevoa font-sans-clean mt-1">
                     {capituloSelecionado.subtitulo}
                   </p>
                 </div>
@@ -194,7 +194,7 @@ export const WikiPage: React.FC = () => {
                   {capituloSelecionado.resumo}
                 </div>
 
-                <div className="prose prose-invert max-w-none text-sm font-sans-clean text-[#d1d5db] leading-relaxed whitespace-pre-line">
+                <div className="prose prose-invert max-w-none text-sm font-sans-clean text-texto-2 leading-relaxed whitespace-pre-line">
                   {capituloSelecionado.conteudo}
                 </div>
               </div>
@@ -206,7 +206,7 @@ export const WikiPage: React.FC = () => {
                 <h3 className="text-xl font-cinzel font-bold text-red-300 mb-2">
                   Capítulo Selado pelo Mestre
                 </h3>
-                <p className="text-xs text-[#8c93a4] font-sans-clean max-w-md mx-auto mb-4">
+                <p className="text-xs text-nevoa font-sans-clean max-w-md mx-auto mb-4">
                   O conteúdo de <strong>"{capituloSelecionado.titulo}"</strong> ainda não foi descoberto ou revelado na campanha atual.
                 </p>
                 <div className="text-[11px] font-cinzel text-amber-500/80 px-3 py-1 bg-amber-950/30 border border-amber-600/30 rounded">

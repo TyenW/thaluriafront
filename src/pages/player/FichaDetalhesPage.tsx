@@ -6,6 +6,9 @@ import {
   ArrowLeft,
   Award,
   Backpack,
+  BookOpen,
+  HeartPulse,
+  Wand2,
   Brain,
   Camera,
   Coins,
@@ -37,18 +40,26 @@ import { AbaInventario } from '../../components/ficha/AbaInventario';
 import { AbaProgressao } from '../../components/ficha/AbaProgressao';
 import { AbaCompanheiros } from '../../components/ficha/AbaCompanheiros';
 import { AbaRaca } from '../../components/ficha/AbaRaca';
+import { AbaHistoria } from '../../components/ficha/AbaHistoria';
+import { AbaCondicoes } from '../../components/ficha/AbaCondicoes';
+import { AbaMagias } from '../../components/ficha/AbaMagias';
 import { ModalEditarFicha } from '../../components/ficha/ModalEditarFicha';
 import { ModalRetrato } from '../../components/ficha/ModalRetrato';
+import { Abas } from '../../components/common/Abas';
+import { useAuth } from '../../contexts/AuthContext';
 
-type Aba = 'atributos' | 'pericias' | 'inventario' | 'moedas' | 'progressao' | 'companheiros' | 'raca';
+type Aba = 'atributos' | 'pericias' | 'magias' | 'condicoes' | 'inventario' | 'moedas' | 'progressao' | 'historia' | 'companheiros' | 'raca';
 type Recurso = 'hpAtual' | 'sanAtual' | 'energiaAtual' | 'manaAtual';
 
 const ABAS: { id: Aba; rotulo: string; icone: React.ReactNode }[] = [
   { id: 'atributos', rotulo: 'Atributos', icone: <Shield className="w-4 h-4" /> },
   { id: 'pericias', rotulo: 'Perícias', icone: <Award className="w-4 h-4" /> },
+  { id: 'magias', rotulo: 'Magias', icone: <Wand2 className="w-4 h-4" /> },
+  { id: 'condicoes', rotulo: 'Condições', icone: <HeartPulse className="w-4 h-4" /> },
   { id: 'inventario', rotulo: 'Inventário', icone: <Backpack className="w-4 h-4" /> },
   { id: 'moedas', rotulo: 'Moedas', icone: <Coins className="w-4 h-4" /> },
   { id: 'progressao', rotulo: 'Progressão', icone: <TrendingUp className="w-4 h-4" /> },
+  { id: 'historia', rotulo: 'História', icone: <BookOpen className="w-4 h-4" /> },
   { id: 'companheiros', rotulo: 'Companheiros', icone: <Activity className="w-4 h-4" /> },
   { id: 'raca', rotulo: 'Raça & Inata', icone: <Sparkles className="w-4 h-4" /> },
 ];
@@ -65,6 +76,7 @@ export const FichaDetalhesPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const { avisos, avisar, fechar: fecharAviso } = useAvisos();
+  const { isMestre } = useAuth();
 
   const [ficha, setFichaEstado] = useState<FichaPersonagem | null>(null);
   // Cópia síncrona do estado para cliques rápidos seguidos (+1, +1, +1...).
@@ -223,7 +235,7 @@ export const FichaDetalhesPage: React.FC = () => {
         <Card variant="grimorio" className="p-8 text-center border-red-500/40 bg-red-950/20">
           <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
           <h2 className="text-xl font-cinzel font-bold text-red-200 mb-2">Não foi possível abrir a ficha</h2>
-          <p className="text-sm text-[#8c93a4] font-sans-clean max-w-lg mx-auto mb-6">{erro || `A ficha #${id} não existe.`}</p>
+          <p className="text-sm text-nevoa font-sans-clean max-w-lg mx-auto mb-6">{erro || `A ficha #${id} não existe.`}</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button variant="outline" size="sm" onClick={() => carregarFicha('inicial')}>
               Tentar novamente
@@ -242,14 +254,14 @@ export const FichaDetalhesPage: React.FC = () => {
   if (loading || !ficha) {
     return (
       <div className="max-w-6xl mx-auto space-y-6 text-left py-8" aria-busy="true" aria-label="Carregando ficha">
-        <div className="h-6 w-48 bg-[#141724] rounded animate-pulse" />
-        <div className="h-40 bg-[#141724] rounded-lg border border-[#2b3346] animate-pulse" />
+        <div className="h-6 w-48 bg-painel-alto rounded animate-pulse" />
+        <div className="h-40 bg-painel-alto rounded-lg border border-linha-forte animate-pulse" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-28 bg-[#141724] rounded-lg animate-pulse" />
+            <div key={i} className="h-28 bg-painel-alto rounded-lg animate-pulse" />
           ))}
         </div>
-        <div className="h-10 bg-[#141724] rounded-lg animate-pulse" />
+        <div className="h-10 bg-painel-alto rounded-lg animate-pulse" />
       </div>
     );
   }
@@ -262,17 +274,17 @@ export const FichaDetalhesPage: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-6 text-left pb-12">
       {/* Navegação e ações gerais */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252b3a] pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-linha pb-4">
         <nav aria-label="Trilha" className="flex items-center gap-2 text-xs font-cinzel min-w-0">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#141724] hover:bg-[#1f2438] border border-[#2e374c] hover:border-amber-500/50 rounded text-amber-300 transition-all shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-painel-alto hover:bg-painel-alto border border-linha-forte hover:border-amber-500/50 rounded text-amber-300 transition-all shrink-0"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Personagens
           </Link>
           <span className="text-gray-600">/</span>
-          <span className="text-[#c9c2b0] truncate">{ficha.nome}</span>
+          <span className="text-texto-2 truncate">{ficha.nome}</span>
         </nav>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -311,7 +323,7 @@ export const FichaDetalhesPage: React.FC = () => {
               id="btn-avatar-retrato"
               type="button"
               onClick={() => setModalFoto(true)}
-              className="relative group shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-amber-600/30 via-[#161a26] to-[#0c0e15] border-2 border-amber-500/60 hover:border-amber-400 overflow-hidden cursor-pointer transition-colors"
+              className="relative group shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-amber-600/30 via-painel to-abismo border-2 border-amber-500/60 hover:border-amber-400 overflow-hidden cursor-pointer transition-colors"
               aria-label={ficha.imagemUrl ? 'Alterar retrato do personagem' : 'Adicionar retrato do personagem'}
             >
               {ficha.imagemUrl ? (
@@ -319,12 +331,12 @@ export const FichaDetalhesPage: React.FC = () => {
               ) : (
                 <span className="flex flex-col items-center justify-center h-full text-amber-400/80">
                   <Shield className="w-8 h-8 sm:w-10 sm:h-10 mb-1" />
-                  <span className="text-[9px] font-cinzel text-amber-300">Sem retrato</span>
+                  <span className="text-[10px] font-cinzel text-amber-300">Sem retrato</span>
                 </span>
               )}
               <span className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 flex flex-col items-center justify-center transition-opacity">
                 <Camera className="w-5 h-5 text-amber-300 mb-1" />
-                <span className="text-[9px] font-cinzel text-amber-200">Alterar</span>
+                <span className="text-[10px] font-cinzel text-amber-200">Alterar</span>
               </span>
             </button>
 
@@ -335,9 +347,18 @@ export const FichaDetalhesPage: React.FC = () => {
                   NR {derivados.nr} • Ordem {derivados.ordem}
                 </Badge>
                 {(ficha.pontosEssencia ?? 0) > 0 && <Badge variant="gold">{ficha.pontosEssencia} PE</Badge>}
+                {(ficha.condicoes ?? []).slice(0, 4).map((c) => (
+                  <button key={c.id} type="button" onClick={() => irParaAba('condicoes')} className="cursor-pointer" title="Ver condições">
+                    <Badge variant={c.tipo === 'POSITIVA' ? 'cyan' : c.tipo === 'NEGATIVA' ? 'danger' : 'muted'}>
+                      {c.nome}
+                      {c.duracaoTurnos != null && ` · ${c.duracaoTurnos}t`}
+                    </Badge>
+                  </button>
+                ))}
+                {(ficha.condicoes?.length ?? 0) > 4 && <Badge variant="muted">+{(ficha.condicoes?.length ?? 0) - 4}</Badge>}
               </div>
-              <h1 className="text-2xl sm:text-4xl font-cinzel font-black text-[#f3e5ab] tracking-wide leading-tight break-words">{ficha.nome}</h1>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-cinzel text-[#8c93a4] mt-2">
+              <h1 className="text-2xl sm:text-4xl font-cinzel font-black text-pergaminho tracking-wide leading-tight break-words">{ficha.nome}</h1>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-cinzel text-nevoa mt-2">
                 <span>
                   Raça: <strong className="text-amber-300">{ficha.raca}</strong>
                 </span>
@@ -351,13 +372,13 @@ export const FichaDetalhesPage: React.FC = () => {
                     Localização: <strong className="text-emerald-400">{ficha.cidadeAtual}</strong>
                   </span>
                 )}
-                <span className="text-[#5d6577]">#{ficha.id}</span>
+                <span className="text-apagado">#{ficha.id}</span>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 bg-[#0a0c12]/90 border border-[#23293a] p-3 sm:p-4 rounded-xl shrink-0 lg:w-80">
-            <div className="text-center px-2 border-r border-[#202534]">
+          <div className="grid grid-cols-2 gap-3 bg-abismo/90 border border-linha p-3 sm:p-4 rounded-xl shrink-0 lg:w-80">
+            <div className="text-center px-2 border-r border-linha">
               <span className="text-[10px] font-cinzel text-amber-500/80 uppercase block">Potencial de Alma</span>
               <strong className="text-lg font-cinzel font-black gold-gradient-text">{derivados.pa} PA</strong>
             </div>
@@ -451,52 +472,49 @@ export const FichaDetalhesPage: React.FC = () => {
 
       {/* Gerenciamento da ficha por abas */}
       <section aria-label="Gerenciamento da ficha" className="space-y-4">
-        <div className="relative border-b border-[#252b3a]">
-          <div role="tablist" aria-label="Seções da ficha" className="abas-rolaveis flex gap-1 overflow-x-auto -mb-px">
-            {ABAS.map((aba) => {
-              const ativa = abaAtiva === aba.id;
-              const contagem =
-                aba.id === 'companheiros' ? ficha.domados?.length : aba.id === 'inventario' ? ficha.inventario?.length : undefined;
-              return (
-                <button
-                  key={aba.id}
-                  id={`aba-${aba.id}`}
-                  role="tab"
-                  type="button"
-                  aria-selected={ativa}
-                  aria-controls={`painel-${aba.id}`}
-                  tabIndex={ativa ? 0 : -1}
-                  onClick={() => irParaAba(aba.id)}
-                  onKeyDown={(e) => {
-                    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-                    const i = ABAS.findIndex((a) => a.id === aba.id);
-                    const prox = ABAS[(i + (e.key === 'ArrowRight' ? 1 : ABAS.length - 1)) % ABAS.length];
-                    irParaAba(prox.id);
-                    document.getElementById(`aba-${prox.id}`)?.focus();
-                  }}
-                  className={`flex items-center gap-2 px-3.5 py-2.5 border-b-2 font-cinzel text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors cursor-pointer ${
-                    ativa ? 'border-amber-400 text-[#f3e5ab] bg-amber-400/10' : 'border-transparent text-[#8c93a4] hover:text-[#e6dfcf] hover:bg-white/5'
-                  }`}
-                >
-                  <span className={ativa ? 'text-amber-400' : ''}>{aba.icone}</span>
-                  {aba.rotulo}
-                  {!!contagem && <span className="text-[10px] font-mono text-[#8c93a4]">({contagem})</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <Abas
+          rotulo="Seções da ficha"
+          ativa={abaAtiva}
+          onTrocar={irParaAba}
+          abas={ABAS.map((aba) => ({
+            ...aba,
+            contagem:
+              aba.id === 'companheiros' ? ficha.domados?.length
+              : aba.id === 'inventario' ? ficha.inventario?.length
+              : aba.id === 'condicoes' ? ficha.condicoes?.length
+              : aba.id === 'magias' ? ficha.magias?.length
+              : undefined,
+          }))}
+        />
 
-        <div id={`painel-${abaAtiva}`} role="tabpanel" aria-labelledby={`aba-${abaAtiva}`}>
+        <div id={`aba-painel-${abaAtiva}`} role="tabpanel" aria-labelledby={`aba-${abaAtiva}`}>
           {abaAtiva === 'atributos' && <AbaAtributos ficha={ficha} derivados={derivados} onEditar={() => setModalEdicao(true)} />}
           {abaAtiva === 'pericias' && (
             <AbaPericias ficha={ficha} avisar={avisar} onPericiasAtualizadas={(pericias) => setFicha((f) => (f ? { ...f, pericias } : f))} />
           )}
-          {abaAtiva === 'inventario' && <AbaInventario ficha={ficha} derivados={derivados} onIrParaMoedas={() => irParaAba('moedas')} />}
+          {abaAtiva === 'inventario' && (
+            <AbaInventario
+              ficha={ficha}
+              derivados={derivados}
+              onIrParaMoedas={() => irParaAba('moedas')}
+              podeGerenciar={isMestre}
+              avisar={avisar}
+              onInventarioAtualizado={(inventario) => setFicha((f) => (f ? { ...f, inventario } : f))}
+            />
+          )}
           {abaAtiva === 'moedas' && <CarteiraMoedas moedas={moedas} onSalvar={salvarMoedas} />}
           {abaAtiva === 'progressao' && <AbaProgressao ficha={ficha} derivados={derivados} onSalvarPE={salvarPE} />}
           {abaAtiva === 'companheiros' && <AbaCompanheiros ficha={ficha} />}
           {abaAtiva === 'raca' && <AbaRaca ficha={ficha} />}
+          {abaAtiva === 'historia' && (
+            <AbaHistoria ficha={ficha} avisar={avisar} onSalvo={(historia) => setFicha((f) => (f ? { ...f, historia } : f))} />
+          )}
+          {abaAtiva === 'condicoes' && (
+            <AbaCondicoes ficha={ficha} avisar={avisar} onAtualizadas={(condicoes) => setFicha((f) => (f ? { ...f, condicoes } : f))} />
+          )}
+          {abaAtiva === 'magias' && (
+            <AbaMagias ficha={ficha} avisar={avisar} onAtualizadas={(magias) => setFicha((f) => (f ? { ...f, magias } : f))} />
+          )}
         </div>
       </section>
 

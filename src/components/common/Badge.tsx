@@ -21,12 +21,12 @@ export const Badge: React.FC<BadgeProps> = ({
   }[size];
 
   const variantStyles = {
-    gold: 'bg-amber-950/40 text-amber-300 border-amber-600/40 shadow-[0_0_8px_rgba(212,175,55,0.15)]',
+    gold: 'bg-amber-950/40 text-amber-300 border-amber-600/40',
     silver: 'bg-slate-900/60 text-slate-200 border-slate-500/40',
     bronze: 'bg-orange-950/40 text-orange-300 border-orange-700/40',
-    danger: 'bg-red-950/50 text-red-300 border-red-600/40 shadow-[0_0_8px_rgba(239,68,68,0.2)]',
-    purple: 'bg-purple-950/50 text-purple-300 border-purple-600/40 shadow-[0_0_8px_rgba(168,85,247,0.2)]',
-    cyan: 'bg-cyan-950/50 text-cyan-300 border-cyan-600/40 shadow-[0_0_8px_rgba(6,182,212,0.2)]',
+    danger: 'bg-red-950/50 text-red-300 border-red-600/40',
+    purple: 'bg-purple-950/50 text-purple-300 border-purple-600/40',
+    cyan: 'bg-cyan-950/50 text-cyan-300 border-cyan-600/40',
     muted: 'bg-white/5 text-gray-400 border-white/10',
   }[variant];
 

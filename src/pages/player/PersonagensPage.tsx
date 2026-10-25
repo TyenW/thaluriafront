@@ -69,15 +69,15 @@ export const PersonagensPage: React.FC = () => {
     <div className="space-y-8 text-left">
       
       {/* Header do Jogador */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#252b3a] pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-linha pb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-cinzel font-bold text-[#f3e5ab] tracking-wide flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-cinzel font-bold text-pergaminho tracking-wide flex items-center gap-3">
             <span>Grimório de Aventureiros</span>
             <Badge variant="gold">
               {fichas.length} / {usuario?.limiteFichas || 2} Fichas
             </Badge>
           </h1>
-          <p className="text-xs text-[#8c93a4] font-sans-clean mt-1">
+          <p className="text-xs text-nevoa font-sans-clean mt-1">
             Personagens registrados em <span className="text-amber-400 font-mono">thaluria.db</span> sob a autoridade da campanha.
           </p>
         </div>
@@ -130,16 +130,16 @@ export const PersonagensPage: React.FC = () => {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="h-64 rounded-lg bg-[#141722]/80 border border-[#2b3142] animate-pulse p-6" />
+            <div key={n} className="h-64 rounded-lg bg-painel/80 border border-linha-forte animate-pulse p-6" />
           ))}
         </div>
       ) : fichas.length === 0 ? (
         <Card variant="pergaminho" className="text-center py-16 px-6">
           <Sparkles className="w-12 h-12 text-amber-500/50 mx-auto mb-4" />
-          <h3 className="text-xl font-cinzel font-bold text-[#f3e5ab] mb-2">
+          <h3 className="text-xl font-cinzel font-bold text-pergaminho mb-2">
             Nenhum Aventureiro Registrado
           </h3>
-          <p className="text-sm text-[#8c93a4] font-sans-clean max-w-md mx-auto mb-6">
+          <p className="text-sm text-nevoa font-sans-clean max-w-md mx-auto mb-6">
             Você ainda não possui nenhum personagem forjado. Inicie agora a criação para participar do sorteio canônico de raças.
           </p>
           <Link to="/criar">
@@ -158,9 +158,9 @@ export const PersonagensPage: React.FC = () => {
             >
               <div>
                 {/* Cabeçalho do Card */}
-                <div className="flex items-start justify-between gap-3 border-b border-[#252b3a] pb-3 mb-4">
+                <div className="flex items-start justify-between gap-3 border-b border-linha pb-3 mb-4">
                   <div>
-                    <h3 className="font-cinzel text-lg font-bold text-[#f3e5ab] group-hover:text-amber-300 transition-colors">
+                    <h3 className="font-cinzel text-lg font-bold text-pergaminho group-hover:text-amber-300 transition-colors">
                       {ficha.nome}
                     </h3>
                     <p className="text-xs text-amber-500/80 font-cinzel">
@@ -208,7 +208,7 @@ export const PersonagensPage: React.FC = () => {
                 </div>
 
                 {/* Atributos Básicos */}
-                <div className="grid grid-cols-6 gap-1 text-center py-2 bg-[#0c0d12]/80 border border-[#202534] rounded mb-4">
+                <div className="grid grid-cols-6 gap-1 text-center py-2 bg-abismo/80 border border-linha rounded mb-4">
                   {[
                     { label: 'VIG', val: ficha.vig },
                     { label: 'FOR', val: ficha.forca },
@@ -218,23 +218,23 @@ export const PersonagensPage: React.FC = () => {
                     { label: 'VON', val: ficha.von },
                   ].map((a) => (
                     <div key={a.label}>
-                      <span className="text-[9px] text-[#8c93a4] block font-cinzel">{a.label}</span>
-                      <strong className="text-xs text-[#f3e5ab] font-bold">{a.val}</strong>
+                      <span className="text-[10px] text-nevoa block font-cinzel">{a.label}</span>
+                      <strong className="text-xs text-pergaminho font-bold">{a.val}</strong>
                     </div>
                   ))}
                 </div>
 
                 {/* Moedas (quantidade física de cada tipo) */}
-                <div className="flex items-center gap-1.5 text-xs text-[#8c93a4] mb-2 min-w-0">
+                <div className="flex items-center gap-1.5 text-xs text-nevoa mb-2 min-w-0">
                   <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   <span className="font-mono text-amber-200/90 truncate">{resumirMoedas(ficha.moedas)}</span>
                 </div>
 
                 {/* Defesa e Monstros Domados */}
-                <div className="flex items-center justify-between text-xs text-[#8c93a4] mb-4">
+                <div className="flex items-center justify-between text-xs text-nevoa mb-4">
                   <div className="flex items-center gap-1.5">
                     <ShieldIcon className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Def. Física: <strong className="text-[#e6dfcf]">{ficha.defFisica}</strong></span>
+                    <span>Def. Física: <strong className="text-texto">{ficha.defFisica}</strong></span>
                   </div>
                   {ficha.domados && ficha.domados.length > 0 && (
                     <span className="text-[10px] px-2 py-0.5 bg-purple-950/60 text-purple-300 border border-purple-500/40 rounded">
@@ -245,7 +245,7 @@ export const PersonagensPage: React.FC = () => {
               </div>
 
               {/* Ação */}
-              <div className="pt-3 border-t border-[#252b3a] flex items-center gap-2">
+              <div className="pt-3 border-t border-linha flex items-center gap-2">
                 <Link to={`/fichas/${ficha.id}`} className="flex-1">
                   <Button variant="dark" size="sm" className="w-full justify-between">
                     <span>Inspecionar Ficha</span>
@@ -269,14 +269,14 @@ export const PersonagensPage: React.FC = () => {
       {/* Modal de Confirmação de Exclusão de Ficha */}
       {fichaParaExcluir && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-[#10131d] border border-red-500/50 rounded-2xl shadow-2xl overflow-hidden p-6 text-left">
+          <div className="w-full max-w-md bg-painel border border-red-500/50 rounded-2xl shadow-2xl overflow-hidden p-6 text-left">
             <div className="flex items-center gap-3 text-red-400 mb-4">
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <h3 className="text-lg font-cinzel font-bold text-red-100">
                 Confirmar Exclusão de Personagem
               </h3>
             </div>
-            <p className="text-xs text-[#a0a8be] font-sans-clean leading-relaxed mb-6">
+            <p className="text-xs text-texto-2 font-sans-clean leading-relaxed mb-6">
               Tem certeza de que deseja apagar o personagem <strong className="text-amber-300 font-cinzel font-bold">{fichaParaExcluir.nome}</strong> (ID #{fichaParaExcluir.id})? Esta ação não pode ser desfeita e liberará um espaço em seu limite de fichas.
             </p>
             <div className="flex items-center justify-end gap-3">

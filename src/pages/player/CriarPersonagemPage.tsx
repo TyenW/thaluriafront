@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { criacaoService } from '../../services/criacaoService';
+import { criacaoService, type SessaoCriacao } from '../../services/criacaoService';
+import { ApiError } from '../../services/api';
+import { ModalConfirmacao } from '../../components/common/ModalConfirmacao';
 import { fichasService } from '../../services/fichasService';
 import type { RacaResumo } from '../../types/raca';
 import { LINHAGENS_DRACONICAS } from '../../types/raca';
@@ -37,6 +39,8 @@ export const CriarPersonagemPage: React.FC = () => {
   const [nomePersonagem, setNomePersonagem] = useState('');
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [retomando, setRetomando] = useState(true);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   // Etapa 2: Raças Sorteadas
   const [opcoesRacas, setOpcoesRacas] = useState<RacaResumo[]>([]);
@@ -46,10 +50,53 @@ export const CriarPersonagemPage: React.FC = () => {
   // Etapa 3: Atributos Rolados pelo Motor Java
   const [atributosRolados, setAtributosRolados] = useState<Record<string, number>>({});
   const [racaEscolhidaNome, setRacaEscolhidaNome] = useState<string>('Humano');
+  /** Índice da raça cujos atributos já foram rolados (-1 = ainda não rolou). */
+  const [indiceRolado, setIndiceRolado] = useState(-1);
+  const [rerolagensRestantes, setRerolagensRestantes] = useState(2);
+  const [rerolagensPermitidas, setRerolagensPermitidas] = useState(2);
+  const [confirmarRerolagem, setConfirmarRerolagem] = useState<'reroll' | 'trocar-raca' | null>(null);
 
   // Nome enviado ao servidor no sorteio; se o jogador renomear depois, aplicamos ao consagrar.
   const [nomeDoSorteio, setNomeDoSorteio] = useState('');
   const racasJaSorteadas = opcoesRacas.length > 0;
+  const jaRolou = indiceRolado >= 0;
+
+  const aplicarSessao = (s: SessaoCriacao) => {
+    setOpcoesRacas(s.opcoesRacas || []);
+    setNomeDoSorteio(s.nomePersonagem);
+    setRerolagensRestantes(s.rerolagensRestantes ?? 0);
+    setRerolagensPermitidas(s.rerolagensPermitidas ?? 2);
+    const rolou = Object.keys(s.atributosRolados || {}).length > 0;
+    setAtributosRolados(s.atributosRolados || {});
+    if (rolou && s.indiceRacaEscolhida >= 0) {
+      setIndiceRolado(s.indiceRacaEscolhida);
+      setRacaSelecionadaIndex(s.indiceRacaEscolhida);
+      setRacaEscolhidaNome(s.racaEscolhidaNome || s.opcoesRacas[s.indiceRacaEscolhida]?.nome || 'Humano');
+    }
+  };
+
+  // Retoma uma criação em andamento: recarregar a página não refaz o sorteio nem devolve rerolagens.
+  useEffect(() => {
+    if (!usuario) return;
+    let ativo = true;
+    criacaoService
+      .obterSessao(usuario.id)
+      .then((s) => {
+        if (!ativo || !s) return;
+        aplicarSessao(s);
+        setNomePersonagem(s.nomePersonagem);
+        const rolou = Object.keys(s.atributosRolados || {}).length > 0;
+        setEtapa(rolou ? 3 : 2);
+        setAviso(`Criação de “${s.nomePersonagem}” retomada de onde você parou.`);
+      })
+      .catch(() => {
+        // Sem sessão retomável (ou servidor antigo): segue para o passo 1.
+      })
+      .finally(() => ativo && setRetomando(false));
+    return () => {
+      ativo = false;
+    };
+  }, [usuario]);
 
   // Passo 1 -> Passo 2: Iniciar Sorteio no Java
   const handleIniciarCriacao = async (e: React.FormEvent) => {
@@ -78,10 +125,9 @@ export const CriarPersonagemPage: React.FC = () => {
     setErro(null);
     try {
       const resp = await criacaoService.iniciar(usuario.id, usuario.username, nome);
-      setNomeDoSorteio(nome);
-      setOpcoesRacas(resp.opcoesRacas || []);
-      setRacaSelecionadaIndex(0);
-      setEtapa(2);
+      aplicarSessao(resp);
+      if (resp.retomada) setAviso('Você já tinha uma criação em andamento; ela foi retomada.');
+      setEtapa(Object.keys(resp.atributosRolados || {}).length > 0 ? 3 : 2);
     } catch (err: any) {
       setErro(err.message || 'Falha ao iniciar sorteio de raças no servidor.');
     } finally {
@@ -89,11 +135,11 @@ export const CriarPersonagemPage: React.FC = () => {
     }
   };
 
-  // Passo 2 -> Passo 3: Escolher Raça e Rolar Atributos no Java
-  const handleConfirmarRaca = async () => {
+  /** Rola (ou rerrola) os atributos da raça selecionada no servidor. */
+  const rolarAtributos = async () => {
     const racaAtual = opcoesRacas[racaSelecionadaIndex];
     if (!racaAtual || !usuario) return;
-
+    setConfirmarRerolagem(null);
     setLoading(true);
     setErro(null);
     try {
@@ -102,14 +148,33 @@ export const CriarPersonagemPage: React.FC = () => {
         racaSelecionadaIndex,
         racaAtual.nome.toLowerCase().includes('dracon') ? linhagemDraconica : undefined
       );
-      setRacaEscolhidaNome(resp.racaEscolhida || racaAtual.nome);
+      setRacaEscolhidaNome(resp.racaEscolhidaNome || racaAtual.nome);
       setAtributosRolados(resp.atributosRolados || {});
+      setIndiceRolado(racaSelecionadaIndex);
+      setRerolagensRestantes(resp.rerolagensRestantes ?? 0);
+      setRerolagensPermitidas(resp.rerolagensPermitidas ?? rerolagensPermitidas);
       setEtapa(3);
     } catch (err: any) {
+      if (err instanceof ApiError && err.status === 409) setRerolagensRestantes(0);
       setErro(err.message || 'Falha ao escolher raça e rolar atributos.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Passo 2 -> Passo 3. Mesma raça já rolada: só avança. Outra raça: rolar de novo gasta uma rerolagem.
+  const handleConfirmarRaca = () => {
+    if (!jaRolou) return rolarAtributos();
+    if (racaSelecionadaIndex === indiceRolado) {
+      setErro(null);
+      setEtapa(3);
+      return;
+    }
+    if (rerolagensRestantes <= 0) {
+      setErro('Suas rerolagens acabaram: não é possível trocar de raça. Volte à raça já rolada para continuar.');
+      return;
+    }
+    setConfirmarRerolagem('trocar-raca');
   };
 
   // Passo 4: Consagrar Ficha Definitiva no SQLite
@@ -152,13 +217,13 @@ export const CriarPersonagemPage: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-8 text-left pb-16">
       
       {/* Header do Wizard */}
-      <div className="border-b border-[#252b3a] pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="border-b border-linha pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-cinzel font-bold text-[#f3e5ab] flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-cinzel font-bold text-pergaminho flex items-center gap-3">
             <Dices className="w-8 h-8 text-amber-400" />
             <span>Forja de Heróis — Criação Canônica</span>
           </h1>
-          <p className="text-xs text-[#8c93a4] font-sans-clean mt-1">
+          <p className="text-xs text-nevoa font-sans-clean mt-1">
             Motor de regras canônicas de Thalúria com Sorteio de 3 Raças e Atributos em intervalos balanceados.
           </p>
         </div>
@@ -171,7 +236,7 @@ export const CriarPersonagemPage: React.FC = () => {
       </div>
 
       {/* Barra de Progresso das 4 Etapas */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
         {[
           { num: 1, label: 'Identidade' },
           { num: 2, label: 'Sorteio de Raças' },
@@ -180,18 +245,18 @@ export const CriarPersonagemPage: React.FC = () => {
         ].map((step) => (
           <div
             key={step.num}
-            className={`p-3 rounded-lg border text-center transition-all ${
+            className={`p-2 sm:p-3 rounded-lg border text-center transition-all ${
               etapa === step.num
                 ? 'bg-amber-400/15 border-amber-500/60 shadow-[0_0_12px_rgba(212,175,55,0.2)]'
                 : etapa > step.num
                 ? 'bg-emerald-950/20 border-emerald-600/40 text-emerald-300'
-                : 'bg-[#12141c] border-[#252b3a] text-gray-500'
+                : 'bg-painel border-linha text-gray-500'
             }`}
           >
-            <span className="block text-[10px] font-cinzel uppercase tracking-widest text-[#8c93a4]">
+            <span className="block text-[10px] font-cinzel uppercase tracking-widest text-nevoa">
               Passo {step.num}
             </span>
-            <span className={`text-xs font-cinzel font-bold ${
+            <span className={`block text-[10px] sm:text-xs leading-tight font-cinzel font-bold ${
               etapa === step.num ? 'text-amber-300' : etapa > step.num ? 'text-emerald-300' : 'text-gray-400'
             }`}>
               {step.label}
@@ -199,6 +264,27 @@ export const CriarPersonagemPage: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {aviso && (
+        <div role="status" className="p-3 bg-emerald-950/40 border border-emerald-600/50 rounded-xl flex items-center gap-3 text-emerald-200 text-xs font-sans-clean">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{aviso}</span>
+        </div>
+      )}
+
+      <ModalConfirmacao
+        aberto={!!confirmarRerolagem}
+        titulo={confirmarRerolagem === 'trocar-raca' ? 'Trocar de raça' : 'Re-rolar atributos'}
+        textoConfirmar={`Usar 1 rerolagem (${rerolagensRestantes} restante${rerolagensRestantes === 1 ? '' : 's'})`}
+        carregando={loading}
+        onConfirmar={rolarAtributos}
+        onCancelar={() => setConfirmarRerolagem(null)}
+      >
+        {confirmarRerolagem === 'trocar-raca'
+          ? `Escolher ${opcoesRacas[racaSelecionadaIndex]?.nome ?? 'outra raça'} rola os seis atributos de novo. `
+          : 'Os seis atributos atuais serão descartados e rolados de novo. '}
+        Cada criação tem {rerolagensPermitidas} rerolagens e esta ação não pode ser desfeita.
+      </ModalConfirmacao>
 
       {/* Alerta de Erro */}
       {erro && (
@@ -211,15 +297,17 @@ export const CriarPersonagemPage: React.FC = () => {
       {/* =========================================================================
           ETAPA 1: NOME E IDENTIDADE DO PERSONAGEM
          ========================================================================= */}
-      {etapa === 1 && (
+      {retomando && <div className="h-48 rounded-xl bg-painel/80 border border-linha-forte animate-pulse" aria-label="Verificando criação em andamento" />}
+
+      {etapa === 1 && !retomando && (
         <Card variant="grimorio" className="p-8 space-y-6">
-          <div className="flex items-center gap-3 border-b border-[#252b3a] pb-4">
+          <div className="flex items-center gap-3 border-b border-linha pb-4">
             <User className="w-6 h-6 text-amber-400" />
             <div>
-              <h2 className="text-xl font-cinzel font-bold text-[#f3e5ab]">
+              <h2 className="text-xl font-cinzel font-bold text-pergaminho">
                 1. Quem é o seu Herói?
               </h2>
-              <p className="text-xs text-[#8c93a4] font-sans-clean">
+              <p className="text-xs text-nevoa font-sans-clean">
                 Dê um nome à sua lenda antes que os dados místicos revelem sua espécie primordial.
               </p>
             </div>
@@ -241,14 +329,14 @@ export const CriarPersonagemPage: React.FC = () => {
               autoFocus
             />
 
-            <div className="p-4 bg-[#0a0c12] rounded-xl border border-amber-600/30 flex items-center justify-between gap-4">
+            <div className="p-4 bg-abismo rounded-xl border border-amber-600/30 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Sparkles className="w-5 h-5 text-amber-400 shrink-0" />
                 <div>
                   <span className="text-xs font-cinzel font-bold text-amber-300 block">
                     Pity System Acumulado: {usuario?.pity || 0}
                   </span>
-                  <p className="text-[11px] text-[#8c93a4] font-sans-clean">
+                  <p className="text-[11px] text-nevoa font-sans-clean">
                     Seu fator de sorte aumenta as chances de raças Raras e Ancestrais Míticas (<strong className="text-amber-400">Draconatos &lt; 1%</strong>).
                   </p>
                 </div>
@@ -275,13 +363,13 @@ export const CriarPersonagemPage: React.FC = () => {
          ========================================================================= */}
       {etapa === 2 && (
         <div className="space-y-6">
-          <div className="p-4 bg-gradient-to-r from-amber-950/40 via-[#151926] to-black/40 border border-amber-500/40 rounded-xl flex items-center justify-between">
+          <div className="p-4 bg-gradient-to-r from-amber-950/40 via-painel to-black/40 border border-amber-500/40 rounded-xl flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-cinzel font-bold text-[#f3e5ab] flex items-center gap-2">
+              <h2 className="text-lg font-cinzel font-bold text-pergaminho flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-400" />
                 <span>As 3 Raças Reveladas para {nomePersonagem}</span>
               </h2>
-              <p className="text-xs text-[#8c93a4] font-sans-clean">
+              <p className="text-xs text-nevoa font-sans-clean">
                 Escolha uma das 3 opções canônicas sorteadas diretamente pelo motor Java.
               </p>
             </div>
@@ -300,12 +388,12 @@ export const CriarPersonagemPage: React.FC = () => {
                   className={`p-5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                     selecionada
                       ? 'bg-amber-950/30 border-amber-500 shadow-[0_0_16px_rgba(212,175,55,0.3)] scale-[1.02]'
-                      : 'bg-[#10131d] border-[#252b3a] hover:border-[#3d4760] opacity-80 hover:opacity-100'
+                      : 'bg-painel border-linha hover:border-linha-forte opacity-80 hover:opacity-100'
                   }`}
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-cinzel uppercase tracking-widest text-[#8c93a4]">
+                      <span className="text-[10px] font-cinzel uppercase tracking-widest text-nevoa">
                         {idx === 0 ? 'Vaga 1 (Fixo)' : `Vaga ${idx + 1} (Sorteada)`}
                       </span>
                       <Badge variant={raca.raridade === 'ANCESTRAL_MITICA' ? 'purple' : 'gold'} size="sm">
@@ -314,7 +402,7 @@ export const CriarPersonagemPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-cinzel font-bold text-[#f3e5ab]">
+                      <h3 className="text-lg font-cinzel font-bold text-pergaminho">
                         {raca.nome}
                       </h3>
                       <span className="text-xs font-cinzel text-amber-400">
@@ -322,11 +410,11 @@ export const CriarPersonagemPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <p className="text-xs text-[#8c93a4] font-sans-clean leading-relaxed italic">
+                    <p className="text-xs text-nevoa font-sans-clean leading-relaxed italic">
                       "{info.descricao}"
                     </p>
 
-                    <div className="space-y-2 pt-2 border-t border-[#252b3a]">
+                    <div className="space-y-2 pt-2 border-t border-linha">
                       <div className="text-[11px] font-sans-clean">
                         <strong className="text-amber-300 block font-cinzel">1. Estrutural:</strong>
                         <span className="text-gray-300">{info.modEstrutural.titulo}</span>
@@ -342,7 +430,7 @@ export const CriarPersonagemPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-3 border-t border-[#252b3a] flex items-center justify-between">
+                  <div className="pt-4 mt-3 border-t border-linha flex items-center justify-between">
                     <span className="text-xs font-cinzel text-amber-400 font-bold">
                       {selecionada ? '✓ Selecionada' : 'Clique para Escolher'}
                     </span>
@@ -366,7 +454,7 @@ export const CriarPersonagemPage: React.FC = () => {
                   <h4 className="text-base font-cinzel font-bold text-amber-300 uppercase tracking-wider">
                     Sorteio de Linhagem Primordial Dracônica (1d8)
                   </h4>
-                  <p className="text-xs text-[#8c93a4] font-sans-clean">
+                  <p className="text-xs text-nevoa font-sans-clean">
                     Draconatos canalizam uma das 8 afinidades elementais canônicas de Thalúria no sopro primordial.
                   </p>
                 </div>
@@ -381,7 +469,7 @@ export const CriarPersonagemPage: React.FC = () => {
                     className={`p-3 rounded-lg border text-left transition-all cursor-pointer ${
                       linhagemDraconica === lin.id
                         ? 'bg-purple-950/50 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.3)]'
-                        : 'bg-[#0a0c14] border-[#252b3a] opacity-70 hover:opacity-100'
+                        : 'bg-abismo border-linha opacity-70 hover:opacity-100'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
@@ -390,10 +478,10 @@ export const CriarPersonagemPage: React.FC = () => {
                       </span>
                       <Flame className={`w-3.5 h-3.5 ${lin.iconeCor}`} />
                     </div>
-                    <strong className="text-xs font-cinzel text-[#f3e5ab] block">
+                    <strong className="text-xs font-cinzel text-pergaminho block">
                       {lin.nome}
                     </strong>
-                    <span className="text-[10px] text-[#8c93a4] font-sans-clean block line-clamp-2 mt-0.5">
+                    <span className="text-[10px] text-nevoa font-sans-clean block line-clamp-2 mt-0.5">
                       {lin.descricao}
                     </span>
                   </button>
@@ -413,15 +501,25 @@ export const CriarPersonagemPage: React.FC = () => {
             </Button>
 
             <Button
+              id="btn-confirmar-raca"
               variant="gold"
               size="lg"
               onClick={handleConfirmarRaca}
               loading={loading}
               icon={<ArrowRight className="w-4 h-4" />}
             >
-              Confirmar {opcoesRacas[racaSelecionadaIndex]?.nome} & Rolar 6 Atributos
+              {!jaRolou
+                ? `Confirmar ${opcoesRacas[racaSelecionadaIndex]?.nome ?? ''} & rolar atributos`
+                : racaSelecionadaIndex === indiceRolado
+                ? 'Continuar com os atributos rolados'
+                : `Trocar para ${opcoesRacas[racaSelecionadaIndex]?.nome ?? ''} (usa 1 rerolagem)`}
             </Button>
           </div>
+          {jaRolou && racaSelecionadaIndex !== indiceRolado && (
+            <p className="text-[11px] text-amber-200 text-right">
+              Trocar de raça rola os atributos de novo e consome uma rerolagem ({rerolagensRestantes} restante(s)).
+            </p>
+          )}
         </div>
       )}
 
@@ -430,7 +528,7 @@ export const CriarPersonagemPage: React.FC = () => {
          ========================================================================= */}
       {etapa === 3 && (
         <div className="space-y-6">
-          <div className="p-4 bg-[#121522] border border-[#2b3346] rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 bg-painel border border-linha-forte rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Badge variant="gold">{racaEscolhidaNome}</Badge>
@@ -438,21 +536,28 @@ export const CriarPersonagemPage: React.FC = () => {
                   Rolagem Oficial Executada no Servidor Java
                 </span>
               </div>
-              <h2 className="text-lg font-cinzel font-bold text-[#f3e5ab]">
+              <h2 className="text-lg font-cinzel font-bold text-pergaminho">
                 Os 6 Atributos Canônicos de {nomePersonagem}
               </h2>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              icon={<RotateCcw className="w-3.5 h-3.5" />}
-              onClick={handleConfirmarRaca}
-              loading={loading}
-              title="Solicitar nova rolagem nos limites da raça"
-            >
-              Re-rolar Atributos
-            </Button>
+            <div className="flex flex-col items-stretch sm:items-end gap-1">
+              <Button
+                id="btn-rerolar"
+                variant="outline"
+                size="sm"
+                icon={<RotateCcw className="w-3.5 h-3.5" />}
+                onClick={() => setConfirmarRerolagem('reroll')}
+                loading={loading}
+                disabled={rerolagensRestantes <= 0}
+                title={rerolagensRestantes <= 0 ? 'Todas as rerolagens desta criação foram usadas' : 'Rolar de novo nos limites da raça'}
+              >
+                Re-rolar atributos
+              </Button>
+              <span id="contador-rerolagens" className={`text-[11px] font-mono ${rerolagensRestantes > 0 ? 'text-nevoa' : 'text-red-300'}`}>
+                Rerolagens: {rerolagensRestantes} de {rerolagensPermitidas} restantes
+              </span>
+            </div>
           </div>
 
           {/* Cards dos 6 Atributos */}
@@ -475,16 +580,16 @@ export const CriarPersonagemPage: React.FC = () => {
                       </span>
                       <Badge variant="gold" size="sm">G{grau}</Badge>
                     </div>
-                    <p className="text-[10px] text-[#8c93a4] font-sans-clean mb-3">
+                    <p className="text-[10px] text-nevoa font-sans-clean mb-3">
                       {attr.desc}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-[#252b3a]">
-                    <span className="text-2xl font-cinzel font-black text-[#f3e5ab]">
+                  <div className="flex items-center justify-between pt-2 border-t border-linha">
+                    <span className="text-2xl font-cinzel font-black text-pergaminho">
                       {exibir(attr.val)}
                     </span>
-                    <span className="text-[11px] font-mono text-amber-400 bg-[#080a10] px-2 py-0.5 rounded border border-[#2b3346]">
+                    <span className="text-[11px] font-mono text-amber-400 bg-abismo px-2 py-0.5 rounded border border-linha-forte">
                       1d20 + G{grau}
                     </span>
                   </div>
@@ -499,14 +604,14 @@ export const CriarPersonagemPage: React.FC = () => {
               <Activity className="w-4 h-4 text-amber-400" />
               <span>Como os recursos serão calculados</span>
             </h4>
-            <p className="text-xs text-[#8c93a4] font-sans-clean mb-4">
+            <p className="text-xs text-nevoa font-sans-clean mb-4">
               Vida, Sanidade, Energia, Mana e Defesas são calculadas pelo servidor com as fórmulas da raça {racaInfoAtiva.nome} ao consagrar
               o personagem. Os valores finais aparecem na ficha.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[racaInfoAtiva.modEstrutural, racaInfoAtiva.modMetabolico].map((mod) => (
-                <div key={mod.titulo} className="p-3 bg-black/40 rounded border border-[#2e3447]">
-                  <span className="text-xs font-cinzel font-bold text-[#f3e5ab] block">{mod.titulo}</span>
+                <div key={mod.titulo} className="p-3 bg-black/40 rounded border border-linha-forte">
+                  <span className="text-xs font-cinzel font-bold text-pergaminho block">{mod.titulo}</span>
                   <code className="block text-[11px] font-mono text-amber-300 mt-1">{mod.formula}</code>
                 </div>
               ))}
@@ -540,19 +645,19 @@ export const CriarPersonagemPage: React.FC = () => {
          ========================================================================= */}
       {etapa === 4 && (
         <Card variant="grimorio" className="p-8 space-y-6 border-amber-500/60 shadow-2xl">
-          <div className="text-center space-y-2 border-b border-[#252b3a] pb-6">
+          <div className="text-center space-y-2 border-b border-linha pb-6">
             <Sparkles className="w-10 h-10 text-amber-400 mx-auto animate-pulse" />
-            <h2 className="text-2xl font-cinzel font-bold text-[#f3e5ab]">
+            <h2 className="text-2xl font-cinzel font-bold text-pergaminho">
               A Forja está Concluída!
             </h2>
-            <p className="text-xs text-[#8c93a4] font-sans-clean max-w-md mx-auto">
+            <p className="text-xs text-nevoa font-sans-clean max-w-md mx-auto">
               Revise o perfil canônico do seu herói antes de consagrá-lo no banco de dados da campanha.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-[#0a0c12] rounded-xl border border-[#23293a]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-abismo rounded-xl border border-linha">
             <div className="space-y-2">
-              <span className="text-[10px] font-cinzel text-[#8c93a4] uppercase tracking-widest block">
+              <span className="text-[10px] font-cinzel text-nevoa uppercase tracking-widest block">
                 Herói & Espécie
               </span>
               <h3 className="text-2xl font-cinzel font-bold text-amber-300">
@@ -564,20 +669,20 @@ export const CriarPersonagemPage: React.FC = () => {
                   {racaInfoAtiva.reinoOrigem}
                 </span>
               </div>
-              <p className="text-xs text-[#8c93a4] font-sans-clean mt-2 italic">
+              <p className="text-xs text-nevoa font-sans-clean mt-2 italic">
                 "{racaInfoAtiva.descricao}"
               </p>
             </div>
 
             <div className="space-y-3">
-              <span className="text-[10px] font-cinzel text-[#8c93a4] uppercase tracking-widest block">
+              <span className="text-[10px] font-cinzel text-nevoa uppercase tracking-widest block">
                 Habilidade Inata Canônica
               </span>
-              <div className="p-3 bg-[#10131d] rounded-lg border border-purple-500/30">
+              <div className="p-3 bg-painel rounded-lg border border-purple-500/30">
                 <h4 className="font-cinzel text-sm font-bold text-purple-300">
                   {racaInfoAtiva.habilidadeInata.nome}
                 </h4>
-                <p className="text-xs text-[#8c93a4] font-sans-clean mt-1">
+                <p className="text-xs text-nevoa font-sans-clean mt-1">
                   {racaInfoAtiva.habilidadeInata.descricao}
                 </p>
               </div>
@@ -593,7 +698,7 @@ export const CriarPersonagemPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-4 pt-4 border-t border-[#252b3a]">
+          <div className="flex items-center justify-between gap-4 pt-4 border-t border-linha">
             <Button
               variant="outline"
               size="md"

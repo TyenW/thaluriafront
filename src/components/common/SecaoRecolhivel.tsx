@@ -41,7 +41,7 @@ export const SecaoRecolhivel: React.FC<SecaoRecolhivelProps> = ({
   };
 
   return (
-    <section className="rounded-xl border border-[#23293a] bg-[#0d0f16]/80">
+    <section className="rounded-xl border border-linha bg-abismo/80">
       <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5">
         <button
           type="button"
@@ -58,7 +58,7 @@ export const SecaoRecolhivel: React.FC<SecaoRecolhivelProps> = ({
           <span className="font-cinzel text-xs sm:text-sm font-bold text-amber-300 uppercase tracking-wider group-hover:text-amber-200 truncate">
             {titulo}
           </span>
-          {resumo && <span className="text-[11px] text-[#8c93a4] font-sans-clean shrink-0">{resumo}</span>}
+          {resumo && <span className="text-[11px] text-nevoa font-sans-clean shrink-0">{resumo}</span>}
           <span className="sr-only">{aberta ? '(recolher)' : '(expandir)'}</span>
         </button>
         {acoes && <div className="flex items-center gap-1.5 shrink-0">{acoes}</div>}

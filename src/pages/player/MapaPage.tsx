@@ -52,10 +52,10 @@ export const MapaPage: React.FC = () => {
 
   return (
     <div className="space-y-6 text-left">
-      <div className="flex flex-col gap-4 border-b border-[#252b3a] pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-linha pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="flex items-center gap-3 font-cinzel text-2xl font-bold text-[#f3e5ab]">
+            <h1 className="flex items-center gap-3 font-cinzel text-2xl font-bold text-pergaminho">
               <Globe className="h-6 w-6 text-amber-400" />
               <span>Mapa do Continente de Thalúria</span>
             </h1>
@@ -65,7 +65,7 @@ export const MapaPage: React.FC = () => {
               </Badge>
             )}
           </div>
-          <p className="mt-1 font-sans-clean text-xs text-[#8c93a4]">
+          <p className="mt-1 font-sans-clean text-xs text-nevoa">
             Atlas dos cinco reinos. Cidades e rotas de viagem surgem conforme sua comitiva avança ou o Mestre as revela.
           </p>
         </div>

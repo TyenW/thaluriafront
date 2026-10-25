@@ -103,7 +103,7 @@ export interface CidadeAtlas {
 export const CIDADES_ATLAS: CidadeAtlas[] = [
   // Frosthelm
   { nome: 'Frosthelm', reino: 'frosthelm', tipo: 'capital', x: 553, y: 187, rotulo: 'direita' },
-  { nome: 'Thaldrim', reino: 'frosthelm', tipo: 'porto', x: 345, y: 150, rotulo: 'direita' },
+  { nome: 'Thaldrim', reino: 'frosthelm', tipo: 'porto', x: 318, y: 142, rotulo: 'direita' },
   { nome: 'Valkar', reino: 'frosthelm', tipo: 'porto', x: 248, y: 253, rotulo: 'direita' },
   { nome: 'Kelvorn', reino: 'frosthelm', tipo: 'cidade', x: 725, y: 222, rotulo: 'direita' },
   { nome: 'Eirnhold', reino: 'frosthelm', tipo: 'fortaleza', x: 602, y: 243, rotulo: 'direita' },
@@ -112,7 +112,7 @@ export const CIDADES_ATLAS: CidadeAtlas[] = [
   { nome: 'Eldergrove', reino: 'sylvanor', tipo: 'vila', x: 1043, y: 98, rotulo: 'direita' },
   { nome: 'Ravenford', reino: 'sylvanor', tipo: 'cidade', x: 858, y: 232, rotulo: 'direita' },
   { nome: 'Willowbrook', reino: 'sylvanor', tipo: 'vila', x: 1138, y: 222, rotulo: 'direita' },
-  { nome: 'Moonhaven', reino: 'sylvanor', tipo: 'porto', x: 1277, y: 226, rotulo: 'esquerda' },
+  { nome: 'Moonhaven', reino: 'sylvanor', tipo: 'porto', x: 1262, y: 236, rotulo: 'esquerda' },
   { nome: 'Stonehollow', reino: 'sylvanor', tipo: 'cidade', x: 1078, y: 320, rotulo: 'direita' },
   // Aurelia
   { nome: 'Aurelia', reino: 'aurelia', tipo: 'capital', x: 437, y: 452, rotulo: 'direita' },
@@ -120,7 +120,7 @@ export const CIDADES_ATLAS: CidadeAtlas[] = [
   { nome: 'Cedrath', reino: 'aurelia', tipo: 'cidade', x: 586, y: 401, rotulo: 'direita' },
   { nome: 'Brisamar', reino: 'aurelia', tipo: 'porto', x: 178, y: 445, rotulo: 'direita' },
   { nome: 'Valdoria', reino: 'aurelia', tipo: 'cidade', x: 498, y: 548, rotulo: 'direita' },
-  { nome: 'Tamaris', reino: 'aurelia', tipo: 'porto', x: 287, y: 578, rotulo: 'direita' },
+  { nome: 'Tamaris', reino: 'aurelia', tipo: 'porto', x: 282, y: 610, rotulo: 'direita' },
   // Drakos
   { nome: 'Drakos', reino: 'drakos', tipo: 'capital', x: 1252, y: 470, rotulo: 'direita' },
   { nome: 'Karthul', reino: 'drakos', tipo: 'cidade', x: 1105, y: 426, rotulo: 'direita' },
@@ -133,22 +133,22 @@ export const CIDADES_ATLAS: CidadeAtlas[] = [
   { nome: 'Duskvale', reino: 'valthera', tipo: 'cidade', x: 810, y: 702, rotulo: 'direita' },
   { nome: 'Shadowfen', reino: 'valthera', tipo: 'cidade', x: 553, y: 791, rotulo: 'direita' },
   { nome: 'Eldenreach', reino: 'valthera', tipo: 'cidade', x: 818, y: 793, rotulo: 'direita' },
-  { nome: 'Noctisport', reino: 'valthera', tipo: 'porto', x: 650, y: 853, rotulo: 'direita' },
+  { nome: 'Noctisport', reino: 'valthera', tipo: 'porto', x: 650, y: 870, rotulo: 'direita' },
   // Campos Meridionais
   { nome: 'Lunara', reino: 'campos', tipo: 'cidade', x: 1008, y: 640, rotulo: 'direita' },
   { nome: 'Monteluz', reino: 'campos', tipo: 'cidade', x: 1108, y: 668, rotulo: 'direita' },
   { nome: 'Ravenspire', reino: 'campos', tipo: 'fortaleza', x: 1060, y: 747, rotulo: 'esquerda' },
-  { nome: 'Porto Real', reino: 'campos', tipo: 'porto', x: 1265, y: 743, rotulo: 'direita' },
+  { nome: 'Porto Real', reino: 'campos', tipo: 'porto', x: 1250, y: 755, rotulo: 'direita' },
   // Ilhas
   { nome: 'Azzura', reino: 'ilhas', tipo: 'fortaleza', x: 848, y: 520, rotulo: 'abaixo' },
   { nome: 'Varell', reino: 'ilhas', tipo: 'porto', x: 1385, y: 150, rotulo: 'abaixo' },
   { nome: 'Crepúsculo', reino: 'ilhas', tipo: 'porto', x: 1225, y: 905, rotulo: 'abaixo' },
   // Cidades Canônicas da Campanha (compatibilidade total e integração de lore)
-  { nome: 'Frostdale', reino: 'frosthelm', tipo: 'cidade', x: 480, y: 155, rotulo: 'acima' },
-  { nome: 'Ironhold', reino: 'frosthelm', tipo: 'fortaleza', x: 645, y: 235, rotulo: 'direita' },
-  { nome: 'Valdorian', reino: 'aurelia', tipo: 'cidade', x: 512, y: 535, rotulo: 'direita' },
-  { nome: 'Porto Oakhaven', reino: 'sylvanor', tipo: 'porto', x: 1220, y: 175, rotulo: 'esquerda' },
-  { nome: 'Sunreach', reino: 'drakos', tipo: 'cidade', x: 1190, y: 440, rotulo: 'direita' },
+  { nome: 'Frostdale', reino: 'frosthelm', tipo: 'porto', x: 448, y: 84, rotulo: 'acima' },
+  { nome: 'Ironhold', reino: 'frosthelm', tipo: 'fortaleza', x: 650, y: 275, rotulo: 'direita' },
+  { nome: 'Valdorian', reino: 'aurelia', tipo: 'cidade', x: 595, y: 505, rotulo: 'direita' },
+  { nome: 'Porto Oakhaven', reino: 'sylvanor', tipo: 'porto', x: 1218, y: 106, rotulo: 'esquerda' },
+  { nome: 'Sunreach', reino: 'drakos', tipo: 'porto', x: 1272, y: 286, rotulo: 'direita' },
 ];
 
 export interface EstradaAtlas {

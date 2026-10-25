@@ -60,18 +60,18 @@ export const SessoesAoVivoPage: React.FC = () => {
 
   return (
     <div className="space-y-6 text-left">
-      <div className="border-b border-[#252b3a] pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="border-b border-linha pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="flex items-center gap-1.5 text-xs font-cinzel text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded border border-emerald-600/40">
               <Radio className="w-3 h-3 animate-pulse" /> Sincronização em Tempo Real (2.5s)
             </span>
           </div>
-          <h1 className="text-2xl font-cinzel font-bold text-[#f3e5ab] flex items-center gap-3">
+          <h1 className="text-2xl font-cinzel font-bold text-pergaminho flex items-center gap-3">
             <UserCheck className="w-6 h-6 text-amber-400" />
             <span>Monitoramento de Fichas ao Vivo</span>
           </h1>
-          <p className="text-xs text-[#8c93a4] font-sans-clean mt-1">
+          <p className="text-xs text-nevoa font-sans-clean mt-1">
             Espelhamento direto de <strong className="font-mono text-amber-400">sessoes_criacao_ficha</strong> com intervenção tática imediata.
           </p>
         </div>
@@ -90,10 +90,10 @@ export const SessoesAoVivoPage: React.FC = () => {
       {sessoes.length === 0 ? (
         <Card variant="pergaminho" className="text-center py-16 px-6">
           <Dices className="w-12 h-12 text-amber-500/40 mx-auto mb-4" />
-          <h3 className="text-lg font-cinzel font-bold text-[#f3e5ab] mb-2">
+          <h3 className="text-lg font-cinzel font-bold text-pergaminho mb-2">
             Nenhuma Criação em Andamento no Momento
           </h3>
-          <p className="text-xs text-[#8c93a4] font-sans-clean max-w-md mx-auto">
+          <p className="text-xs text-nevoa font-sans-clean max-w-md mx-auto">
             Assim que um jogador clicar em <strong>"Criar Novo Personagem"</strong> e sortear suas raças, sua sessão aparecerá instantaneamente neste painel para seu acompanhamento.
           </p>
         </Card>
@@ -101,19 +101,19 @@ export const SessoesAoVivoPage: React.FC = () => {
         <div className="grid grid-cols-1 gap-6">
           {sessoes.map((s) => (
             <Card key={s.usuarioId} variant="grimorio" className="p-6 border-amber-600/40">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252b3a] pb-4 mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-linha pb-4 mb-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="cyan">Jogador #{s.usuarioId}</Badge>
                     <Badge variant="gold">Etapa: {s.etapa}</Badge>
                     {s.aprovada && <Badge variant="gold">✓ Aprovada pelo Mestre</Badge>}
                   </div>
-                  <h3 className="text-xl font-cinzel font-bold text-[#f3e5ab]">
+                  <h3 className="text-xl font-cinzel font-bold text-pergaminho">
                     {s.personagem || 'Novo Aventureiro'}
                   </h3>
                 </div>
 
-                <div className="text-xs text-[#8c93a4] font-cinzel">
+                <div className="text-xs text-nevoa font-cinzel">
                   Raça Escolhida:{' '}
                   <strong className="text-amber-300 font-bold">
                     {s.racaEscolhida || 'Aguardando Escolha'}
@@ -122,7 +122,7 @@ export const SessoesAoVivoPage: React.FC = () => {
               </div>
 
               {/* Opções Sorteadas para o Jogador */}
-              <div className="mb-4 p-3 bg-[#0c0d12] rounded border border-[#232838]">
+              <div className="mb-4 p-3 bg-abismo rounded border border-linha">
                 <span className="text-[11px] font-cinzel text-amber-400 block mb-1">
                   Opções de Raça Sorteadas pelo Motor Java:
                 </span>
@@ -157,7 +157,7 @@ export const SessoesAoVivoPage: React.FC = () => {
               )}
 
               {/* Ações de Intervenção do Mestre */}
-              <div className="pt-4 border-t border-[#252b3a] space-y-3">
+              <div className="pt-4 border-t border-linha space-y-3">
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     placeholder="Escreva uma dica ou orientação tática para o jogador..."

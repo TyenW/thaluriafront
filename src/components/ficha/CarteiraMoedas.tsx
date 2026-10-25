@@ -95,14 +95,14 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-[#8c93a4] font-sans-clean leading-relaxed">
+      <p className="text-xs text-nevoa font-sans-clean leading-relaxed">
         Cada moeda é contada separadamente: o personagem carrega exatamente as moedas listadas abaixo.
         Nenhum valor é convertido entre denominações.
       </p>
 
       {/* Lançamento rápido */}
       {!editando && (
-        <div className="p-4 rounded-xl bg-[#0a0c12] border border-[#23293a] space-y-3">
+        <div className="p-4 rounded-xl bg-abismo border border-linha space-y-3">
           <span className="text-xs font-cinzel font-bold text-amber-300 uppercase tracking-wider block">Receber ou gastar moedas</span>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_8rem_auto] gap-2 items-start">
             <label className="block">
@@ -115,7 +115,7 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
                   setErroLancamento(null);
                 }}
                 disabled={salvando}
-                className="w-full bg-[#141724] text-[#f3e5ab] rounded-lg border border-[#383d4e] px-3 py-2 text-sm outline-none focus:border-amber-400"
+                className="w-full bg-painel-alto text-pergaminho rounded-lg border border-linha-forte px-3 py-2 text-sm outline-none focus:border-amber-400"
               >
                 {MOEDAS.map((m) => (
                   <option key={m.tipo} value={m.tipo}>
@@ -139,7 +139,7 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
                 }}
                 disabled={salvando}
                 aria-invalid={!!erroLancamento}
-                className="w-full bg-[#141724] text-[#f3e5ab] rounded-lg border border-[#383d4e] px-3 py-2 text-sm font-mono outline-none focus:border-amber-400"
+                className="w-full bg-painel-alto text-pergaminho rounded-lg border border-linha-forte px-3 py-2 text-sm font-mono outline-none focus:border-amber-400"
               />
             </label>
             <div className="flex gap-2">
@@ -184,7 +184,7 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
           </span>
           {!editando ? (
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1.5 text-[11px] text-[#8c93a4] font-sans-clean cursor-pointer select-none">
+              <label className="flex items-center gap-1.5 text-[11px] text-nevoa font-sans-clean cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={mostrarZeradas}
@@ -198,15 +198,15 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
               </Button>
             </div>
           ) : (
-            <span className="text-[11px] text-[#8c93a4] font-sans-clean">Defina a quantidade exata de cada moeda.</span>
+            <span className="text-[11px] text-nevoa font-sans-clean">Defina a quantidade exata de cada moeda.</span>
           )}
         </div>
 
         {!editando && !possuiAlguma && !mostrarZeradas ? (
-          <div className="text-center py-8 px-4 rounded-xl border border-dashed border-[#2b3346] bg-[#0a0c12]">
+          <div className="text-center py-8 px-4 rounded-xl border border-dashed border-linha-forte bg-abismo">
             <Coins className="w-9 h-9 text-amber-500/40 mx-auto mb-2" />
-            <p className="text-sm font-cinzel text-[#f3e5ab]">Bolsa vazia</p>
-            <p className="text-[11px] text-[#8c93a4] font-sans-clean mt-1">Use “Receber” acima para registrar moedas obtidas.</p>
+            <p className="text-sm font-cinzel text-pergaminho">Bolsa vazia</p>
+            <p className="text-[11px] text-nevoa font-sans-clean mt-1">Use “Receber” acima para registrar moedas obtidas.</p>
           </div>
         ) : (
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -224,14 +224,14 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
                       : erro
                       ? 'border-red-500/60 bg-red-950/20'
                       : qtd > 0
-                      ? 'border-[#2b3346] bg-[#0c0e15]'
-                      : 'border-[#1d2230] bg-[#0a0b10] opacity-60'
+                      ? 'border-linha-forte bg-abismo'
+                      : 'border-linha bg-abismo opacity-60'
                   }`}
                 >
                   <DiscoMoeda info={m} />
                   <div className="min-w-0 flex-1">
                     <span className={`block font-cinzel text-sm font-bold ${m.texto}`}>{m.nome}</span>
-                    <span className="block text-[10px] text-[#8c93a4] font-mono">
+                    <span className="block text-[10px] text-nevoa font-mono">
                       {m.sigla}
                       {mudou && ` · ${qtd.toLocaleString('pt-BR')} → ${Number(textoRascunho).toLocaleString('pt-BR')}`}
                     </span>
@@ -248,10 +248,10 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
                       aria-invalid={!!erro}
                       onChange={(e) => setRascunho((r) => ({ ...r, [m.tipo]: e.target.value }))}
                       disabled={salvando}
-                      className="w-28 bg-[#141724] text-right text-[#f3e5ab] rounded border border-[#383d4e] px-2 py-1.5 text-sm font-mono outline-none focus:border-amber-400"
+                      className="w-28 bg-painel-alto text-right text-pergaminho rounded border border-linha-forte px-2 py-1.5 text-sm font-mono outline-none focus:border-amber-400"
                     />
                   ) : (
-                    <strong className="font-mono text-lg text-[#f3e5ab] tabular-nums" aria-label={`${qtd} ${m.nome}`}>
+                    <strong className="font-mono text-lg text-pergaminho tabular-nums" aria-label={`${qtd} ${m.nome}`}>
                       {qtd.toLocaleString('pt-BR')}
                     </strong>
                   )}

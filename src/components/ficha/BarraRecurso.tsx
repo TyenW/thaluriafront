@@ -57,7 +57,7 @@ export interface BarraRecursoProps {
 export const BarraRecurso: React.FC<BarraRecursoProps> = ({ nome, icone, atual, maximo, tema, rodape, onAjustar }) => {
   const pct = Math.min(100, Math.max(0, (atual / (maximo || 1)) * 100));
   return (
-    <div className={`rounded-lg border p-3 sm:p-4 bg-gradient-to-br via-[#12141c] to-[#0d0f15] ${tema.borda}`}>
+    <div className={`rounded-lg border p-3 sm:p-4 bg-gradient-to-br via-painel to-abismo ${tema.borda}`}>
       <div className="flex items-center justify-between mb-2 gap-2">
         <span className={`flex items-center gap-1.5 text-xs font-cinzel font-bold ${tema.rotulo}`}>
           {icone}
@@ -94,7 +94,7 @@ export const BarraRecurso: React.FC<BarraRecursoProps> = ({ nome, icone, atual, 
         ))}
       </div>
 
-      {rodape && <div className="flex items-center justify-between gap-2 mt-2 text-[10px] text-[#8c93a4] font-cinzel">{rodape}</div>}
+      {rodape && <div className="flex items-center justify-between gap-2 mt-2 text-[10px] text-nevoa font-cinzel">{rodape}</div>}
     </div>
   );
 };

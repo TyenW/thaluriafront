@@ -6,17 +6,17 @@ import { Box, Layers, Move3d, Sparkles, Compass, Swords } from 'lucide-react';
 export const VTT3DPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 text-left">
-      <div className="border-b border-[#252b3a] pb-6 flex items-start justify-between gap-4">
+      <div className="border-b border-linha pb-6 flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Badge variant="purple">Experimental</Badge>
             <Badge variant="gold">Planejamento Arquitetural</Badge>
           </div>
-          <h1 className="text-3xl font-cinzel font-bold text-[#f3e5ab] flex items-center gap-3">
+          <h1 className="text-3xl font-cinzel font-bold text-pergaminho flex items-center gap-3">
             <Box className="w-8 h-8 text-purple-400" />
             <span>VTT 3D — Em Desenvolvimento</span>
           </h1>
-          <p className="text-xs text-[#8c93a4] font-sans-clean mt-1">
+          <p className="text-xs text-nevoa font-sans-clean mt-1">
             Mesa virtual tridimensional imersiva para combate tático, exploração e cenários espaciais em Thalúria.
           </p>
         </div>
@@ -30,36 +30,36 @@ export const VTT3DPage: React.FC = () => {
           <div className="w-12 h-12 rounded-xl bg-purple-950/60 border border-purple-500/40 flex items-center justify-center mb-4 text-purple-300">
             <Move3d className="w-6 h-6 animate-pulse" />
           </div>
-          <h2 className="text-xl font-cinzel font-bold text-[#f3e5ab] mb-3">
+          <h2 className="text-xl font-cinzel font-bold text-pergaminho mb-3">
             O Próximo Salto na Imersão de Thalúria
           </h2>
-          <p className="text-sm text-[#8c93a4] font-sans-clean leading-relaxed mb-6">
+          <p className="text-sm text-nevoa font-sans-clean leading-relaxed mb-6">
             A mesa virtual 3D está planejada para proporcionar um ambiente tridimensional onde os jogadores movem seus tokens, exploram masmorras com névoa de guerra volumétrica e travam combates com linhas de visão dinâmicas diretamente integradas com as fichas e o motor de combate Java.
           </p>
         </div>
 
         {/* Pilares Planejados */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t border-[#252b3a]">
-          <div className="p-4 bg-[#0d0f15]/80 rounded border border-[#232838]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t border-linha">
+          <div className="p-4 bg-abismo/80 rounded border border-linha">
             <Layers className="w-5 h-5 text-amber-400 mb-2" />
-            <h4 className="font-cinzel text-xs font-bold text-[#e6dfcf] mb-1">Cenários & Mapas 3D</h4>
-            <p className="text-[11px] text-[#8c93a4] font-sans-clean">
+            <h4 className="font-cinzel text-xs font-bold text-texto mb-1">Cenários & Mapas 3D</h4>
+            <p className="text-[11px] text-nevoa font-sans-clean">
               Suporte a mapas com elevações, desníveis e terrenos táticos (planícies, cavernas, fortalezas).
             </p>
           </div>
 
-          <div className="p-4 bg-[#0d0f15]/80 rounded border border-[#232838]">
+          <div className="p-4 bg-abismo/80 rounded border border-linha">
             <Compass className="w-5 h-5 text-cyan-400 mb-2" />
-            <h4 className="font-cinzel text-xs font-bold text-[#e6dfcf] mb-1">Câmera Livre & Rotação</h4>
-            <p className="text-[11px] text-[#8c93a4] font-sans-clean">
+            <h4 className="font-cinzel text-xs font-bold text-texto mb-1">Câmera Livre & Rotação</h4>
+            <p className="text-[11px] text-nevoa font-sans-clean">
               Controles de rotação orbital, zoom suave e visão em primeira pessoa para exploração.
             </p>
           </div>
 
-          <div className="p-4 bg-[#0d0f15]/80 rounded border border-[#232838]">
+          <div className="p-4 bg-abismo/80 rounded border border-linha">
             <Swords className="w-5 h-5 text-red-400 mb-2" />
-            <h4 className="font-cinzel text-xs font-bold text-[#e6dfcf] mb-1">Integração de Fichas</h4>
-            <p className="text-[11px] text-[#8c93a4] font-sans-clean">
+            <h4 className="font-cinzel text-xs font-bold text-texto mb-1">Integração de Fichas</h4>
+            <p className="text-[11px] text-nevoa font-sans-clean">
               Tokens com barras de HP flutuantes, anéis de alcance de feitiços e movimentação por turno.
             </p>
           </div>

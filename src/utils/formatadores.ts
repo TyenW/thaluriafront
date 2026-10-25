@@ -13,3 +13,21 @@ export function getCorPerigo(perigo: number): { texto: string; fundo: string; bo
   if (perigo <= 7) return { texto: 'text-orange-400', fundo: 'bg-orange-950/40', borda: 'border-orange-600/40' };
   return { texto: 'text-red-400', fundo: 'bg-red-950/40', borda: 'border-red-600/40' };
 }
+
+/** "ARMA_BRANCA" -> "Arma branca" (apresentação de enums vindos do servidor). */
+export function rotuloEnum(valor: string): string {
+  const t = valor.replace(/_/g, ' ').toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/** Cor do texto de cada raridade de item (Item.RaridadeItem no back-end). */
+export const COR_RARIDADE: Record<string, string> = {
+  COMUM: 'text-texto-2',
+  INCOMUM: 'text-emerald-300',
+  RARO: 'text-sky-300',
+  EPICO: 'text-purple-300',
+  LENDARIO: 'text-amber-300',
+  MITICO: 'text-rose-300',
+};
+
+export const corRaridade = (raridade?: string | null) => COR_RARIDADE[raridade ?? ''] ?? 'text-texto-2';

@@ -10,18 +10,18 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Card: React.FC<CardProps> = ({
   children,
   variant = 'grimorio',
-  withOrnaments = true,
+  withOrnaments = false,
   className = '',
   ...props
 }) => {
   const variantClass = {
     grimorio: 'grimorio-card',
     pergaminho: 'pergaminho-card',
-    simple: 'bg-[#151822]/90 border border-[#2b3142]',
+    simple: 'bg-painel border border-linha',
   }[variant];
 
   return (
-    <div className={`relative rounded-lg p-5 ${variantClass} ${className}`} {...props}>
+    <div className={`relative rounded-xl p-5 ${variantClass} ${className}`} {...props}>
       {withOrnaments && (
         <>
           <span className="ornament-corner ornament-corner-tl" />

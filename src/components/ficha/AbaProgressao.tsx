@@ -44,7 +44,7 @@ export const AbaProgressao: React.FC<AbaProgressaoProps> = ({ ficha, derivados, 
           { rotulo: 'Ordem', valor: String(derivados.ordem), cor: 'text-purple-300' },
           { rotulo: 'Patamar', valor: derivados.patamar, cor: 'text-amber-200' },
         ].map((c) => (
-          <div key={c.rotulo} className="p-3 sm:p-4 rounded-xl bg-[#0a0c12] border border-[#23293a] text-center">
+          <div key={c.rotulo} className="p-3 sm:p-4 rounded-xl bg-abismo border border-linha text-center">
             <span className="text-[10px] font-cinzel text-amber-500/80 uppercase block">{c.rotulo}</span>
             <strong className={`text-base sm:text-lg font-cinzel font-black ${c.cor}`}>{c.valor}</strong>
           </div>
@@ -66,8 +66,8 @@ export const AbaProgressao: React.FC<AbaProgressaoProps> = ({ ficha, derivados, 
                   onChange={(e) => setPe(e.target.value)}
                   aria-invalid={!!erroPE}
                   disabled={salvando}
-                  className={`w-full bg-[#141724] text-purple-200 rounded border px-3 py-2 text-sm font-mono outline-none focus:border-purple-400 ${
-                    erroPE ? 'border-red-500/70' : 'border-[#383d4e]'
+                  className={`w-full bg-painel-alto text-purple-200 rounded border px-3 py-2 text-sm font-mono outline-none focus:border-purple-400 ${
+                    erroPE ? 'border-red-500/70' : 'border-linha-forte'
                   }`}
                 />
                 {erroPE && <span className="block text-[11px] text-red-300 mt-1">{erroPE}</span>}
@@ -98,13 +98,13 @@ export const AbaProgressao: React.FC<AbaProgressaoProps> = ({ ficha, derivados, 
             </>
           )}
         </div>
-        <p className="text-[11px] text-[#8c93a4] font-sans-clean mt-3">
+        <p className="text-[11px] text-nevoa font-sans-clean mt-3">
           Os PE são gastos para evoluir atributos, conforme o custo definido pelas regras da campanha.
         </p>
       </SecaoRecolhivel>
 
       <SecaoRecolhivel chave="progressao:patamares" titulo="Patamares de Ascensão" icone={<TrendingUp className="w-4 h-4 text-amber-400" />} abertaPorPadrao={false}>
-        <p className="text-[11px] text-[#8c93a4] font-sans-clean mb-3">
+        <p className="text-[11px] text-nevoa font-sans-clean mb-3">
           O patamar acompanha o Potencial de Alma (PA), calculado a partir dos seis atributos. NR = ⌊√PA⌋ e Ordem = ⌊NR ÷ 10⌋.
         </p>
         <ol className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -115,11 +115,11 @@ export const AbaProgressao: React.FC<AbaProgressaoProps> = ({ ficha, derivados, 
                 key={p.titulo}
                 aria-current={atual ? 'step' : undefined}
                 className={`flex items-center justify-between gap-2 px-3 py-2 rounded border text-xs ${
-                  atual ? 'border-amber-500/70 bg-amber-950/30 text-amber-200' : 'border-[#23293a] bg-[#0c0e15] text-[#a0a8ba]'
+                  atual ? 'border-amber-500/70 bg-amber-950/30 text-amber-200' : 'border-linha bg-abismo text-texto-2'
                 }`}
               >
                 <span className="font-cinzel font-bold">
-                  {p.titulo} <span className="font-sans-clean font-normal text-[#8c93a4]">· {p.desc}</span>
+                  {p.titulo} <span className="font-sans-clean font-normal text-nevoa">· {p.desc}</span>
                 </span>
                 <span className="font-mono text-[11px] shrink-0">≥ {p.minimo.toLocaleString('pt-BR')} PA</span>
               </li>

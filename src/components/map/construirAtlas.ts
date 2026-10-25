@@ -73,6 +73,8 @@ export interface AtlasConstruido {
   rotasMaritimas: RotaMaritimaDesenhada[];
   rios: string[];
   ondas: Ponto[];
+  /** Polígonos usados para traçar rotas por terra ou por água. */
+  poligonos: { costa: Ponto[]; lago: Ponto[]; ilhas: Ponto[][] };
 }
 
 let cache: AtlasConstruido | null = null;
@@ -245,6 +247,7 @@ export function construirAtlas(): AtlasConstruido {
     estradas,
     rotasMaritimas,
     rios,
+    poligonos: { costa, lago: lagoPts, ilhas: ilhasPts.map((i) => i.pts) },
   };
   return cache;
 }

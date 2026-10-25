@@ -4,6 +4,8 @@ import type { FichaPersonagem } from '../../types/ficha';
 import { fichasService, type AtualizacaoFicha, type FichaAtualizada } from '../../services/fichasService';
 import { ATRIBUTOS_INFO, grauDe, type ChaveAtributo } from '../../utils/calculosFicha';
 import { Modal } from '../common/Modal';
+import { useAuth } from '../../contexts/AuthContext';
+import { mundoService } from '../../services/mundoService';
 import { Button } from '../common/Button';
 
 const ATRIBUTO_MIN = 1;
@@ -18,10 +20,11 @@ const RECURSOS: { chave: ChaveRecurso; max: keyof FichaPersonagem; nome: string;
   { chave: 'manaAtual', max: 'manaMax', nome: 'Mana', cor: 'text-cyan-400' },
 ];
 
-type Form = Record<'nome' | ChaveAtributo | ChaveRecurso, string>;
+type Form = Record<'nome' | 'cidadeId' | ChaveAtributo | ChaveRecurso, string>;
 
 const formDaFicha = (f: FichaPersonagem): Form => ({
   nome: f.nome,
+  cidadeId: f.cidadeAtualId != null ? String(f.cidadeAtualId) : '',
   vig: String(f.vig),
   forca: String(f.forca),
   des: String(f.des),
@@ -67,6 +70,16 @@ export const ModalEditarFicha: React.FC<ModalEditarFichaProps> = ({ aberto, fich
   const [form, setForm] = useState<Form>(() => formDaFicha(ficha));
   const [salvando, setSalvando] = useState(false);
   const [tentou, setTentou] = useState(false);
+  const { usuario } = useAuth();
+  const [cidades, setCidades] = useState<{ id: number; nome: string }[]>([]);
+
+  useEffect(() => {
+    if (!aberto) return;
+    mundoService
+      .obterConteudoVisivel(usuario?.papel ?? 'JOGADOR')
+      .then((d) => setCidades(d.cidades.filter((c) => c.id != null && c.nome !== '???').map((c) => ({ id: c.id!, nome: c.nome })).sort((a, b) => a.nome.localeCompare(b.nome))))
+      .catch(() => setCidades([]));
+  }, [aberto, usuario?.papel]);
 
   // Reabre sempre com os dados atuais da ficha.
   useEffect(() => {
@@ -91,6 +104,7 @@ export const ModalEditarFicha: React.FC<ModalEditarFichaProps> = ({ aberto, fich
     const dados: AtualizacaoFicha = { id: ficha.id };
     for (const k of alterados) {
       if (k === 'nome') dados.nome = form.nome.trim();
+      else if (k === 'cidadeId') dados.cidadeId = form.cidadeId ? Number(form.cidadeId) : null;
       else dados[k] = Number(form[k]);
     }
 
@@ -108,8 +122,8 @@ export const ModalEditarFicha: React.FC<ModalEditarFichaProps> = ({ aberto, fich
   };
 
   const campo = (k: keyof Form, extra = '') =>
-    `w-full bg-[#141724] text-[#f3e5ab] rounded border px-2.5 py-1.5 text-sm font-mono outline-none focus:border-amber-500 ${extra} ${
-      tentou && erros[k] ? 'border-red-500/70' : alterados.includes(k) ? 'border-amber-500/60' : 'border-[#383d4e]'
+    `w-full bg-painel-alto text-pergaminho rounded border px-2.5 py-1.5 text-sm font-mono outline-none focus:border-amber-500 ${extra} ${
+      tentou && erros[k] ? 'border-red-500/70' : alterados.includes(k) ? 'border-amber-500/60' : 'border-linha-forte'
     }`;
   const erro = (k: keyof Form) => tentou && erros[k] && <p className="text-[10px] text-red-300 mt-0.5">{erros[k]}</p>;
 
@@ -123,22 +137,41 @@ export const ModalEditarFicha: React.FC<ModalEditarFichaProps> = ({ aberto, fich
       tamanho="lg"
     >
       <form onSubmit={salvar} className="space-y-5" noValidate>
-        <div>
-          <label htmlFor="input-edit-nome" className="block text-xs font-cinzel font-semibold uppercase tracking-wider text-[#d4af37]/90 mb-1.5">
-            Nome do personagem
-          </label>
-          <input
-            id="input-edit-nome"
-            type="text"
-            value={form.nome}
-            onChange={(e) => setForm({ ...form, nome: e.target.value })}
-            aria-invalid={tentou && !!erros.nome}
-            className={campo('nome', 'font-sans-clean')}
-          />
-          {erro('nome')}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="input-edit-nome" className="block text-xs font-cinzel font-semibold uppercase tracking-wider text-ouro/90 mb-1.5">
+              Nome do personagem
+            </label>
+            <input
+              id="input-edit-nome"
+              type="text"
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              aria-invalid={tentou && !!erros.nome}
+              className={campo('nome', 'font-sans-clean')}
+            />
+            {erro('nome')}
+          </div>
+          <div>
+            <label htmlFor="select-edit-cidade" className="block text-xs font-cinzel font-semibold uppercase tracking-wider text-ouro/90 mb-1.5">
+              Cidade atual
+            </label>
+            <select id="select-edit-cidade" value={form.cidadeId} onChange={(e) => setForm({ ...form, cidadeId: e.target.value })} className={campo('cidadeId', 'font-sans-clean')}>
+              <option value="">Sem cidade definida</option>
+              {/* Mantém a cidade atual na lista mesmo que ela não esteja revelada ao jogador. */}
+              {form.cidadeId && !cidades.some((c) => String(c.id) === form.cidadeId) && ficha.cidadeAtual && (
+                <option value={form.cidadeId}>{ficha.cidadeAtual}</option>
+              )}
+              {cidades.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <fieldset className="p-4 bg-[#0a0c12] rounded-lg border border-[#23293a] space-y-3">
+        <fieldset className="p-4 bg-abismo rounded-lg border border-linha space-y-3">
           <legend className="px-1 text-xs font-cinzel font-bold text-amber-300 uppercase tracking-wider">Atributos</legend>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {ATRIBUTOS_INFO.map((a) => {
@@ -167,12 +200,12 @@ export const ModalEditarFicha: React.FC<ModalEditarFichaProps> = ({ aberto, fich
               );
             })}
           </div>
-          <p className="text-[10px] text-[#8c93a4] font-sans-clean">
+          <p className="text-[10px] text-nevoa font-sans-clean">
             Grau = valor ÷ 10 (arredondado para baixo). Vida, Sanidade, Energia, Mana e Defesas são recalculadas pelo servidor com as fórmulas da raça.
           </p>
         </fieldset>
 
-        <fieldset className="p-4 bg-[#0a0c12] rounded-lg border border-[#23293a] space-y-3">
+        <fieldset className="p-4 bg-abismo rounded-lg border border-linha space-y-3">
           <legend className="px-1 text-xs font-cinzel font-bold text-amber-300 uppercase tracking-wider">Recursos atuais</legend>
           <div className="flex justify-end -mt-1">
             <button
@@ -218,11 +251,11 @@ export const ModalEditarFicha: React.FC<ModalEditarFichaProps> = ({ aberto, fich
           )}
         </fieldset>
 
-        <p className="text-[11px] text-[#8c93a4] font-sans-clean">
+        <p className="text-[11px] text-nevoa font-sans-clean">
           Moedas, Pontos de Essência e perícias são gerenciados nas próprias abas e não são alterados aqui.
         </p>
 
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-4 border-t border-[#252b3a]">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-4 border-t border-linha">
           <Button type="button" variant="ghost" size="md" onClick={onFechar} disabled={salvando}>
             Cancelar
           </Button>
