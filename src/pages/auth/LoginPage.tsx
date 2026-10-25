@@ -4,7 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
-import { Sparkles, KeyRound, User, AlertCircle } from 'lucide-react';
+import { Sparkles, KeyRound, User, AlertCircle, Wifi, Check, X } from 'lucide-react';
+import { obterApiBaseUrl, definirApiBaseUrl } from '../../services/api';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -14,6 +15,8 @@ export const LoginPage: React.FC = () => {
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [mostrarConfigUrl, setMostrarConfigUrl] = useState(false);
+  const [customUrl, setCustomUrl] = useState(() => obterApiBaseUrl());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,10 +121,73 @@ export const LoginPage: React.FC = () => {
           </form>
         </Card>
 
-        {/* Nota de rodapé técnica */}
-        <p className="text-center text-[11px] text-apagado font-sans-clean mt-6">
-          Conexão direta com <span className="text-amber-500/70 font-mono">ServidorThaluriaAPI</span> (Porta 8080 ou Cloudflare Tunnel)
-        </p>
+        {/* Rodapé com Status e Conexão Inteligente */}
+        <div className="mt-6 text-center">
+          {!mostrarConfigUrl ? (
+            <div className="flex items-center justify-center gap-2 text-[11px] text-apagado font-sans-clean">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>
+                Conexão:{' '}
+                <span className="text-amber-400/90 font-mono">
+                  {obterApiBaseUrl() ? obterApiBaseUrl() : 'Local (Proxy /api)'}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setMostrarConfigUrl(true)}
+                className="text-amber-500 hover:text-amber-300 underline underline-offset-2 ml-1 transition-colors"
+                title="Alterar endereço do túnel ou servidor backend"
+              >
+                (Trocar)
+              </button>
+            </div>
+          ) : (
+            <div className="p-3 bg-fundo-card/90 border border-linha-media rounded-lg text-left max-w-sm mx-auto shadow-lg animate-fadeIn">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-cinzel text-pergaminho font-semibold flex items-center gap-1.5">
+                  <Wifi className="w-3.5 h-3.5 text-amber-400" /> Endereço do Servidor / Túnel
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMostrarConfigUrl(false)}
+                  className="text-nevoa hover:text-pergaminho p-0.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <input
+                type="text"
+                placeholder="Ex: https://xyz.trycloudflare.com ou vazio para local"
+                value={customUrl}
+                onChange={(e) => setCustomUrl(e.target.value)}
+                className="w-full bg-fundo border border-linha-media rounded px-2.5 py-1.5 text-xs text-pergaminho focus:outline-none focus:border-amber-500 font-mono mb-2"
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    definirApiBaseUrl('');
+                    setCustomUrl('');
+                    setMostrarConfigUrl(false);
+                  }}
+                  className="px-2 py-1 text-[11px] text-nevoa hover:text-pergaminho transition-colors"
+                >
+                  Resetar (Local)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    definirApiBaseUrl(customUrl);
+                    setMostrarConfigUrl(false);
+                  }}
+                  className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-preto text-xs font-semibold rounded transition-colors flex items-center gap-1"
+                >
+                  <Check className="w-3 h-3" /> Salvar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
       </div>
     </div>

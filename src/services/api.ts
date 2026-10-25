@@ -6,7 +6,56 @@
 
 import { avisarSessaoExpirada, tokenAtual } from './sessao';
 
-const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
+/**
+ * Retorna a URL base do backend:
+ * 1. Parâmetro da URL (?servidor=... ou ?api=...) capturado e persistido no localStorage.
+ * 2. URL salva manualmente ou persistida anteriormente no localStorage.
+ * 3. Variável de ambiente compilada VITE_API_URL.
+ * 4. Vazia ('') para usar o proxy relativo /api em ambiente local.
+ */
+export function obterApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const apiParam = params.get('servidor') || params.get('api');
+      if (apiParam && (apiParam.startsWith('http://') || apiParam.startsWith('https://'))) {
+        const limpa = apiParam.trim().replace(/\/$/, '');
+        localStorage.setItem('thaluria_api_url', limpa);
+
+        // Limpa os parâmetros da barra de endereço para manter a URL elegante
+        const novaUrl = new URL(window.location.href);
+        novaUrl.searchParams.delete('servidor');
+        novaUrl.searchParams.delete('api');
+        window.history.replaceState({}, '', novaUrl.toString());
+        return limpa;
+      }
+    } catch {
+      // Ignora erro em ambientes restritos
+    }
+
+    const salvo = localStorage.getItem('thaluria_api_url');
+    if (salvo && (salvo.startsWith('http://') || salvo.startsWith('https://'))) {
+      return salvo.trim().replace(/\/$/, '');
+    }
+  }
+
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
+    return envUrl.trim().replace(/\/$/, '');
+  }
+
+  return '';
+}
+
+export function definirApiBaseUrl(novaUrl: string): void {
+  if (typeof window !== 'undefined') {
+    if (!novaUrl || !novaUrl.trim()) {
+      localStorage.removeItem('thaluria_api_url');
+    } else {
+      localStorage.setItem('thaluria_api_url', novaUrl.trim().replace(/\/$/, ''));
+    }
+  }
+}
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -27,7 +76,8 @@ export class ApiError extends Error {
 export async function requestApi<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', params, body, timeoutMs = 12000 } = options;
 
-  let url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const baseUrl = obterApiBaseUrl();
+  let url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
   const isPostOrPut = method === 'POST' || method === 'PUT' || method === 'DELETE';
   // Em requisições POST/PUT, dados em params ou body vão no corpo HTTP (body), NUNCA na URL query string

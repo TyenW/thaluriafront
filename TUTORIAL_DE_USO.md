@@ -22,7 +22,7 @@ Abra **http://localhost:5173**.
 
 | Título | Usuário | Senha |
 | :--- | :--- | :--- |
-| Mestre da Mesa | `mestre` | `thaluriaadmin` |
+| Mestre da Mesa | `mestre` | `Senha14933` |
 | Aventureiro | `jogador1` | `123456` |
 
 ## Quarto — Provar os Poderes
