@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ContaUsuario } from '../types/usuario';
 import { authService } from '../services/authService';
+import { EVENTO_SESSAO_EXPIRADA } from '../services/sessao';
 
 interface AuthContextType {
   usuario: ContaUsuario | null;
@@ -24,6 +25,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUsuario(salvo);
     }
     setLoading(false);
+
+    // As molduras de rota levam ao /login quando usuario fica nulo.
+    const aoExpirar = () => setUsuario(null);
+    window.addEventListener(EVENTO_SESSAO_EXPIRADA, aoExpirar);
+    return () => window.removeEventListener(EVENTO_SESSAO_EXPIRADA, aoExpirar);
   }, []);
 
   const login = async (user: string, pass: string): Promise<ContaUsuario> => {

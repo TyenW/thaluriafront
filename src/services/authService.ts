@@ -1,7 +1,6 @@
 import { requestApi } from './api';
+import { lerConta, limparConta, salvarConta } from './sessao';
 import type { ContaUsuario, RespostaLogin } from '../types/usuario';
-
-const STORAGE_KEY = 'thaluria_auth_usuario';
 
 export const authService = {
   async login(username: string, senha: string): Promise<ContaUsuario> {
@@ -20,26 +19,24 @@ export const authService = {
       papel: res.papel,
       limiteFichas: res.limiteFichas,
       pity: res.pity,
+      token: res.token,
     };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(conta));
+    salvarConta(conta);
     return conta;
   },
 
   getUsuarioSalvo(): ContaUsuario | null {
-    try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : null;
-    } catch {
-      return null;
-    }
+    return lerConta();
   },
 
+  /** Invalida o token no servidor (sem esperar a resposta) e apaga a sessão local. */
   logout(): void {
-    localStorage.removeItem(STORAGE_KEY);
+    if (lerConta()) requestApi('/api/logout', { method: 'POST' }).catch(() => {});
+    limparConta();
   },
 
   salvarUsuario(conta: ContaUsuario): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(conta));
-  }
+    salvarConta(conta);
+  },
 };

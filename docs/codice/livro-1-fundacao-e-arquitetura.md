@@ -136,11 +136,12 @@ Toda conversa passa por `requestApi(endpoint, opcoes)`:
 | Ofício local (`npm run dev`) | `VITE_API_URL` vazio → o Vite repassa `/api` para `http://localhost:8080` |
 | Produção (Vercel) | `VITE_API_URL=https://...` (o túnel da Cloudflare, ver Livro VII) |
 
-### § 3. Da sessão
+### § 3. Da sessão e do selo
 
-O `AuthContext` guarda a conta no `localStorage` do navegador. As molduras `PlayerLayout` e `MasterLayout` mandam para `/login` quem não tem sessão, e o `MasterLayout` devolve ao início quem não é Mestre.
-
-> ⚠️ **Advertência do escriba:** esta guarda vive só no navegador. O servidor ainda não confere quem pede. Leia o Livro VII, Capítulo IV, antes de abrir o reino ao mundo.
+1. O `/api/login` devolve um **token** (o selo). `services/sessao.ts` o guarda junto com a conta no `localStorage`.
+2. `api.ts` envia o selo em todo pedido: `Authorization: Bearer <token>`.
+3. Se o Motor responder **401**, `api.ts` apaga a sessão e avisa o `AuthContext`, e as molduras levam o viajante de volta ao `/login`.
+4. As molduras `PlayerLayout` e `MasterLayout` só cuidam da navegação. **Quem decide o que cada um pode fazer é o Motor** (Livro VII, Capítulo IV).
 
 ---
 

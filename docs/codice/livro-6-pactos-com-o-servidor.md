@@ -18,7 +18,10 @@
 - Recusa: `{"erro": "mensagem legível"}`, com 400 (dado inválido), 401 (credencial), 404 (não encontrado) ou 500 (falha interna).
 
 ### § 3. Do CORS
-O Motor responde `Access-Control-Allow-Origin: *` e trata o `OPTIONS` prévio. Por isso a Vercel consegue falar com ele por outro domínio.
+O Motor responde `Access-Control-Allow-Origin: *`, aceita o cabeçalho `Authorization` e trata o `OPTIONS` prévio. Por isso a Vercel consegue falar com ele por outro domínio.
+
+### § 4. Do selo (token)
+Toda rota, exceto `/api/login` e `/api/logout`, exige `Authorization: Bearer <token>`. Sem selo válido: **401**. Com selo, mas sem permissão: **403**. As regras completas estão no Livro VII, Capítulo IV.
 
 ---
 
@@ -26,7 +29,8 @@ O Motor responde `Access-Control-Allow-Origin: *` e trata o `OPTIONS` prévio. P
 
 | Rota | Parâmetros | Devolve |
 | :--- | :--- | :--- |
-| `POST /api/login` | `username`, `senha` | `id`, `username`, `papel`, `limiteFichas`, `pity` |
+| `POST /api/login` | `username`, `senha` | `id`, `username`, `papel`, `limiteFichas`, `pity`, `token`; **429** após 8 senhas erradas em 15 min |
+| `POST /api/logout` | (cabeçalho `Authorization`) | Invalida o token |
 
 ---
 

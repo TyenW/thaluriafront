@@ -52,7 +52,9 @@ A cada acendimento, `BancoDados.inicializarEsquema()` cria as tabelas que faltar
 | `monstros_catalogo` | `descricao` | Lenda exibida no bestiário |
 | `itens` | `imagem_url` | Ilustração do item |
 
-Nada é apagado; fichas e itens antigos seguem intactos.
+Também nasce a tabela `sessoes_login`, e as senhas em texto puro são trocadas por hash. O terminal avisa: *"N senha(s) em texto puro convertida(s) para hash PBKDF2"*.
+
+Nada é apagado; fichas e itens antigos seguem intactos. Quem estava logado precisa **entrar de novo** uma vez.
 
 ---
 

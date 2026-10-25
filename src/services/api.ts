@@ -4,6 +4,8 @@
  * - Em produção na Vercel: usa VITE_API_URL (ex: Cloudflare Tunnel https://thaluria-api.sua-url.com).
  */
 
+import { avisarSessaoExpirada, tokenAtual } from './sessao';
+
 const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
 
 export interface RequestOptions {
@@ -55,6 +57,9 @@ export async function requestApi<T>(endpoint: string, options: RequestOptions = 
     headers: {},
   };
 
+  const token = tokenAtual();
+  if (token) (fetchOptions.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+
   if (isPostOrPut && payloadBody) {
     const form = new URLSearchParams();
     for (const [k, v] of Object.entries(payloadBody)) {
@@ -78,6 +83,10 @@ export async function requestApi<T>(endpoint: string, options: RequestOptions = 
       } catch {
         data = { message: text };
       }
+    }
+
+    if (response.status === 401 && !endpoint.includes('/api/login')) {
+      avisarSessaoExpirada();
     }
 
     if (!response.ok) {

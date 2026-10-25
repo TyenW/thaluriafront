@@ -6,6 +6,8 @@ export interface ContaUsuario {
   papel: PapelUsuario;
   limiteFichas: number;
   pity: number;
+  /** Token da sessão, enviado em cada pedido (Authorization: Bearer). */
+  token: string;
 }
 
 export interface RespostaLogin {
@@ -14,5 +16,6 @@ export interface RespostaLogin {
   papel: PapelUsuario;
   limiteFichas: number;
   pity: number;
+  token: string;
   erro?: string;
 }

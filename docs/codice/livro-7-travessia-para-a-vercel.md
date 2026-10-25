@@ -59,34 +59,39 @@ Anote o endereço `https://....trycloudflare.com` que surgir.
 
 ---
 
-## Capítulo IV — Das Advertências Graves
+## Capítulo IV — Das Guardas do Portão
 
-> ⚔️ *Leia este capítulo inteiro antes de passar o link aos jogadores.*
+> ⚔️ *Outrora o Motor aceitava qualquer pedido. Hoje cada porta tem sentinela.*
 
-### § 1. Do portão sem guarda
+### § 1. Do selo de entrada
+- Ao entrar, o Motor entrega um **token aleatório de 256 bits**, válido por **30 dias**.
+- O banco guarda só o **SHA-256** do token (tabela `sessoes_login`). Quem copiar o `thaluria.db` não consegue abrir sessões.
+- **Sair** invalida o token no Motor, não apenas no navegador.
 
-O Motor **não confere quem faz o pedido**. O papel de Mestre fica só no navegador, e as rotas `/api/admin/*`, `/api/mestre/*` e `/api/fichas/*` aceitam qualquer chamada. Quem descobrir o endereço do túnel pode, com uma simples ferramenta de linha de comando:
+### § 2. Das senhas
+- Guardadas com **PBKDF2-HMAC-SHA256**, 120.000 iterações e sal próprio.
+- Senhas antigas em texto puro são convertidas no primeiro acendimento do Motor.
+- **8 senhas erradas em 15 minutos** bloqueiam aquela conta pelo resto da janela (resposta 429).
+- Quando o Mestre define uma senha nova para uma conta, todas as sessões abertas dela caem.
 
-- apagar monstros, itens, cidades e fichas;
-- criar contas de Mestre;
-- ler as fichas de todos.
+### § 3. Das permissões (decididas pelo Motor)
 
-### § 2. Do remédio recomendado
+| Quem | Pode |
+| :--- | :--- |
+| Sem selo | Apenas `/api/login` e `/api/logout` |
+| Jogador | Ler e alterar **só as próprias fichas**; forjar personagem **só para si**; ver mapa, wiki e bestiário filtrados pela névoa |
+| Mestre | Tudo: `/api/admin/*`, `/api/mestre/*`, conceder e retirar itens, qualquer ficha |
 
-Antes de abrir o reino a estranhos, o Motor precisa de **sessões com token**: o `/api/login` devolve um token, a Interface o envia em cada pedido, e o Motor recusa rotas de Mestre a quem não for Mestre. Até lá:
+O papel é lido do banco **a cada pedido**. Parâmetros como `papel`, `usuarioId` e `username` enviados pelo navegador são **reescritos** pelo Motor, de modo que o jogador não se faz passar por Mestre nem por outro jogador.
 
-1. Use o túnel só durante as sessões de jogo e desligue-o depois.
-2. Passe o endereço apenas aos jogadores da mesa.
-3. Troque a senha padrão do Mestre.
-4. Faça cópia do `thaluria.db` antes de cada sessão.
+### § 4. Das cautelas que ainda cabem ao Mestre
+1. Troque a senha padrão `thaluriaadmin` antes de publicar.
+2. Faça cópia do `thaluria.db` antes de cada sessão.
+3. Desligue o túnel quando não houver jogo: o PC do Mestre fica menos exposto.
+4. O bloqueio de senhas vive na memória; reiniciar o Motor o zera.
 
-### § 3. Do peso das imagens
-
+### § 5. Do peso das imagens
 Retratos e ilustrações moram no banco, em base64 (~30–80 KB cada após a redução). Com centenas de imagens, listas como o bestiário ficam pesadas para o túnel. Se o catálogo crescer muito, vale guardar as imagens como arquivos e servir só o endereço.
-
-### § 4. Do arquivo esquecido
-
-`public/file_00000000c53c820eb8cd75238da59f45.png` (3,4 MB) não é usado pelo código, mas vai junto em cada publicação. Pode ser apagado se não tiver outro uso.
 
 ---
 
@@ -95,6 +100,7 @@ Retratos e ilustrações moram no banco, em base64 (~30–80 KB cada após a red
 - [ ] `npm run build` passa.
 - [ ] Motor aceso e túnel ativo.
 - [ ] `VITE_API_URL` atualizado na Vercel e redeploy feito.
+- [ ] Motor reiniciado com `iniciar_servidor.bat` (aplica tokens e hash de senhas).
 - [ ] Senha do Mestre trocada.
 - [ ] Cópia do `thaluria.db` guardada.
 - [ ] Entrar pelo link da Vercel no celular e abrir uma ficha.
