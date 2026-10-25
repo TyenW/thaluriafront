@@ -23,13 +23,19 @@ export class ApiError extends Error {
 }
 
 export async function requestApi<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', params, body, timeoutMs = 8000 } = options;
+  const { method = 'GET', params, body, timeoutMs = 12000 } = options;
 
   let url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
-  if (params) {
+  const isPostOrPut = method === 'POST' || method === 'PUT' || method === 'DELETE';
+  // Em requisições POST/PUT, dados em params ou body vão no corpo HTTP (body), NUNCA na URL query string
+  // Isso resolve definitivamente o erro HTTP 431 (Request Header Fields Too Large) ao enviar fotos em base64.
+  const payloadBody = body || (isPostOrPut ? params : undefined);
+  const queryParams = isPostOrPut ? (body ? params : undefined) : params;
+
+  if (queryParams) {
     const query = new URLSearchParams();
-    for (const [key, val] of Object.entries(params)) {
+    for (const [key, val] of Object.entries(queryParams)) {
       if (val !== undefined && val !== null) {
         query.append(key, String(val));
       }
@@ -49,17 +55,15 @@ export async function requestApi<T>(endpoint: string, options: RequestOptions = 
     headers: {},
   };
 
-  if (method === 'POST' || method === 'PUT') {
-    if (body) {
-      const form = new URLSearchParams();
-      for (const [k, v] of Object.entries(body)) {
-        if (v !== undefined && v !== null) {
-          form.append(k, String(v));
-        }
+  if (isPostOrPut && payloadBody) {
+    const form = new URLSearchParams();
+    for (const [k, v] of Object.entries(payloadBody)) {
+      if (v !== undefined && v !== null) {
+        form.append(k, String(v));
       }
-      fetchOptions.body = form.toString();
-      (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
     }
+    fetchOptions.body = form.toString();
+    (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
   }
 
   try {

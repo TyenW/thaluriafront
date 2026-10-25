@@ -57,10 +57,25 @@ export const mundoService = {
     });
   },
 
-  async cadastrarOuAlterarUsuario(username: string, senha = '123', papel: PapelUsuario = 'JOGADOR', limiteFichas = 2): Promise<{ id: number; username: string; limiteFichas: number }> {
+  async cadastrarOuAlterarUsuario(username: string, senha?: string, papel: PapelUsuario = 'JOGADOR', limiteFichas = 2): Promise<{ id: number; username: string; limiteFichas: number }> {
     return requestApi<{ id: number; username: string; limiteFichas: number }>('/api/mestre/usuarios', {
       method: 'POST',
-      body: { username, senha, papel, limiteFichas },
+      // senha vazia/ausente: o servidor mantém a senha atual da conta
+      body: { username, senha: senha?.trim() || undefined, papel, limiteFichas },
+    });
+  },
+
+  async listarUsuarios(): Promise<{ id: number; username: string; papel: PapelUsuario; limiteFichas: number; pity: number; totalFichas: number }[]> {
+    const res = await requestApi<any[]>('/api/mestre/usuarios', {
+      method: 'GET',
+    });
+    return Array.isArray(res) ? res : [];
+  },
+
+  async excluirUsuario(id: number): Promise<{ status: string; sucesso: boolean; id: number }> {
+    return requestApi<{ status: string; sucesso: boolean; id: number }>('/api/mestre/usuarios/excluir', {
+      method: 'POST',
+      body: { id },
     });
   },
 };

@@ -211,6 +211,28 @@
   animation: arcane-pulse 3s infinite ease-in-out;
 }
 
+/* Entrada suave de modais e avisos (classe já usada em vários componentes) */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in { animation: none; }
+}
+
+/* Barra de abas roláveis sem barra visível */
+.abas-rolaveis {
+  scrollbar-width: none;
+}
+.abas-rolaveis::-webkit-scrollbar {
+  display: none;
+}
+
 /* Mapa: espessura de traço constante em pixels, independente do zoom */
 .mapa-svg path,
 .mapa-svg circle,

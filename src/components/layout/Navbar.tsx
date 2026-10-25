@@ -6,7 +6,6 @@ import {
   Map as MapIcon, 
   BookOpen, 
   Package, 
-  Sparkles, 
   Box, 
   Crown, 
   LogOut, 
@@ -52,7 +51,7 @@ export const Navbar: React.FC = () => {
     { label: 'Personagens', path: '/', icon: <Shield className="w-4 h-4" /> },
     { label: 'Mapa', path: '/mapa', icon: <MapIcon className="w-4 h-4" /> },
     { label: 'Bestiário', path: '/bestiario', icon: <BookOpen className="w-4 h-4" /> },
-    { label: 'Inventário & Craft', path: '/inventario', icon: <Package className="w-4 h-4" /> },
+    { label: 'Inventário & Moedas', path: '/inventario', icon: <Package className="w-4 h-4" /> },
     { label: 'Wiki & Regras', path: '/wiki', icon: <ScrollText className="w-4 h-4" /> },
     { label: 'VTT 3D', path: '/vtt3d', icon: <Box className="w-4 h-4" />, badge: 'Em Breve' },
   ];
@@ -68,39 +67,33 @@ export const Navbar: React.FC = () => {
   const currentNav = isMestre ? masterNavItems : playerNavItems;
 
   return (
-    <header className="sticky top-0 z-50 bg-[#090a0f]/95 backdrop-blur-md border-b border-[#2e3544] shadow-xl">
+    <header className="sticky top-0 z-50 bg-[#090a0f]/95 backdrop-blur-md border-b border-[#252a38] shadow-2xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 gap-3">
           
-          {/* Logo Brand */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600 via-yellow-700 to-amber-950 p-[1px] shadow-lg shadow-amber-950/40 group-hover:shadow-amber-500/20 transition-all">
-              <div className="w-full h-full bg-[#12141c] rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-              </div>
-            </div>
-            <div className="text-left">
-              <span className="font-decorative text-xl font-bold tracking-wider gold-gradient-text block leading-none">
-                Thalúria
-              </span>
-              <span className="text-[10px] font-cinzel text-amber-500/70 tracking-widest uppercase block mt-0.5">
-                Crônicas de Arcanum
-              </span>
-            </div>
+          {/* Brand - Apenas o nome Thaluria */}
+          <Link 
+            to="/" 
+            className="flex items-center group shrink-0 select-none py-1"
+            title="Thalúria RPG"
+          >
+            <span className="font-cinzel text-xl sm:text-2xl font-black tracking-[0.22em] uppercase gold-gradient-text drop-shadow-[0_2px_12px_rgba(212,175,55,0.35)] group-hover:brightness-125 transition-all">
+              Thaluria
+            </span>
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 flex-1 justify-center max-w-3xl mx-2">
             {currentNav.map((item) => {
               const active = isActive(item.path);
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded font-cinzel text-xs font-semibold uppercase tracking-wider transition-all relative ${
+                  className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-md font-cinzel text-[11px] xl:text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap ${
                     active
-                      ? 'text-[#f3e5ab] bg-[#d4af37]/15 border border-[#d4af37]/40 shadow-[0_0_12px_rgba(212,175,55,0.15)]'
-                      : 'text-[#8c93a4] hover:text-[#e6dfcf] hover:bg-white/5 border border-transparent'
+                      ? 'text-[#f3e5ab] bg-[#d4af37]/15 border border-[#d4af37]/50 shadow-[0_0_12px_rgba(212,175,55,0.2)] font-bold'
+                      : 'text-[#8c93a4] hover:text-[#f3e5ab] hover:bg-white/5 border border-transparent'
                   }`}
                 >
                   <span className={active ? 'text-amber-400' : 'text-[#8c93a4]'}>
@@ -108,7 +101,7 @@ export const Navbar: React.FC = () => {
                   </span>
                   <span>{item.label}</span>
                   {item.badge && (
-                    <span className="text-[9px] px-1.5 py-0.2 bg-purple-950/80 text-purple-300 border border-purple-500/40 rounded">
+                    <span className="text-[9px] px-1.5 py-0.5 bg-purple-950/90 text-purple-300 border border-purple-500/40 rounded leading-none">
                       {item.badge}
                     </span>
                   )}
@@ -119,26 +112,26 @@ export const Navbar: React.FC = () => {
               );
             })}
 
-            {/* Alternar Mestre <-> Jogador para testes */}
+            {/* Alternar Mestre <-> Jogador para testes rápidos */}
             {isMestre && (
               <Link
                 to="/"
-                className="flex items-center gap-1.5 ml-2 px-2.5 py-1.5 rounded text-[11px] font-cinzel text-amber-400/80 border border-amber-600/30 hover:border-amber-400/60 hover:bg-amber-400/10 transition-colors"
+                className="flex items-center gap-1.5 ml-1 px-2 py-1.5 rounded text-[11px] font-cinzel text-amber-400/80 border border-amber-600/30 hover:border-amber-400/60 hover:bg-amber-400/10 transition-colors whitespace-nowrap"
                 title="Visualizar plataforma na perspectiva de jogador"
               >
                 <Shield className="w-3.5 h-3.5" />
-                <span>Visão Jogador</span>
+                <span className="hidden xl:inline">Visão Jogador</span>
               </Link>
             )}
           </nav>
 
           {/* User Profile, Actions & Mobile Hamburger Button */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {usuario ? (
               <div className="flex items-center gap-2 sm:gap-3">
                 <div className="text-right hidden sm:block">
                   <div className="flex items-center justify-end gap-1.5">
-                    <span className="font-cinzel text-xs font-bold text-[#f3e5ab]">
+                    <span className="font-cinzel text-xs font-bold text-[#f3e5ab] max-w-[120px] truncate">
                       {usuario.username}
                     </span>
                     <Badge variant={isMestre ? 'danger' : 'gold'}>
@@ -147,7 +140,7 @@ export const Navbar: React.FC = () => {
                   </div>
                   <div className="text-[10px] text-[#8c93a4] font-sans-clean mt-0.5">
                     {isMestre ? (
-                      <span className="text-amber-400/80">Acesso Irrestrito</span>
+                      <span className="text-amber-400/80 font-cinzel">Mestre do Jogo</span>
                     ) : (
                       <span>Pity: <strong className="text-amber-300">+{usuario.pity}</strong> • Limite: <strong className="text-amber-300">{usuario.limiteFichas}</strong></span>
                     )}
@@ -156,7 +149,7 @@ export const Navbar: React.FC = () => {
 
                 <button
                   onClick={handleLogout}
-                  className="hidden sm:flex p-2 text-[#8c93a4] hover:text-red-400 hover:bg-red-950/30 rounded border border-transparent hover:border-red-900/40 transition-colors cursor-pointer"
+                  className="hidden sm:flex items-center justify-center p-2 text-[#8c93a4] hover:text-red-400 hover:bg-red-950/30 rounded-lg border border-[#2b3142]/60 hover:border-red-900/50 transition-colors cursor-pointer"
                   title="Encerrar Sessão"
                 >
                   <LogOut className="w-4 h-4" />
@@ -171,11 +164,11 @@ export const Navbar: React.FC = () => {
               </Link>
             )}
 
-            {/* Botão Hambúrguer Mobile */}
+            {/* Botão Hambúrguer Mobile / Tablet */}
             <button
               type="button"
               onClick={() => setMenuAberto((v) => !v)}
-              className="flex md:hidden items-center justify-center p-2 rounded-lg bg-[#141724] border border-[#2b3346] text-[#e6dfcf] hover:text-amber-400 hover:border-amber-500/50 transition-colors cursor-pointer"
+              className="flex lg:hidden items-center justify-center p-2 rounded-lg bg-[#141724] border border-[#2b3346] text-[#e6dfcf] hover:text-amber-400 hover:border-amber-500/50 transition-colors cursor-pointer"
               aria-label={menuAberto ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
               aria-expanded={menuAberto}
             >
@@ -186,9 +179,9 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* Gaveta / Dropdown Mobile */}
+      {/* Gaveta / Dropdown Mobile & Tablet */}
       {menuAberto && (
-        <div className="md:hidden border-t border-[#2e3544] bg-[#0c0e15]/98 px-4 pt-3 pb-6 shadow-2xl animate-in slide-in-from-top-2 duration-200">
+        <div className="lg:hidden border-t border-[#252a38] bg-[#0c0e15]/98 px-4 pt-4 pb-6 shadow-2xl backdrop-blur-xl animate-in slide-in-from-top-2 duration-200">
           {usuario && (
             <div className="mb-4 pb-3 border-b border-[#1f2433] flex items-center justify-between">
               <div>

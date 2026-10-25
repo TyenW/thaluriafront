@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { fichasService } from '../../services/fichasService';
 import type { FichaPersonagem } from '../../types/ficha';
 import { Card } from '../../components/common/Card';
+import { PainelAvisos, useAvisos } from '../../components/common/Avisos';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { 
@@ -16,20 +17,26 @@ import {
   Sparkles, 
   AlertTriangle,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  Coins
 } from 'lucide-react';
+import { resumirMoedas } from '../../data/moedas';
 
 export const PersonagensPage: React.FC = () => {
+  const { avisos, avisar, fechar: fecharAviso } = useAvisos();
   const { usuario } = useAuth();
   const [fichas, setFichas] = useState<FichaPersonagem[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [fichaParaExcluir, setFichaParaExcluir] = useState<FichaPersonagem | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
 
   const carregarFichas = async () => {
     setLoading(true);
     setErro(null);
     try {
-      const data = await fichasService.listarTodas();
+      const data = await fichasService.listarTodas(usuario?.id, usuario?.papel);
       setFichas(data);
     } catch (err: any) {
       setErro(err.message || 'Falha ao carregar fichas do servidor Java.');
@@ -40,7 +47,21 @@ export const PersonagensPage: React.FC = () => {
 
   useEffect(() => {
     carregarFichas();
-  }, []);
+  }, [usuario?.id, usuario?.papel]);
+
+  const handleExcluir = async () => {
+    if (!fichaParaExcluir) return;
+    setExcluindo(true);
+    try {
+      await fichasService.excluirFicha(fichaParaExcluir.id);
+      setFichaParaExcluir(null);
+      await carregarFichas();
+    } catch (err: any) {
+      avisar('erro', err.message || 'Erro ao excluir ficha.');
+    } finally {
+      setExcluindo(false);
+    }
+  };
 
   const limiteAtingido = usuario ? fichas.length >= usuario.limiteFichas : false;
 
@@ -72,17 +93,17 @@ export const PersonagensPage: React.FC = () => {
             Atualizar
           </Button>
 
-          <Link to={limiteAtingido ? '#' : '/criar'}>
-            <Button
-              variant="gold"
-              size="md"
-              icon={<Plus className="w-4 h-4" />}
-              disabled={limiteAtingido}
-              title={limiteAtingido ? 'Limite de fichas atingido. Peça autorização ao Mestre.' : 'Iniciar Criação de Personagem'}
-            >
+          {limiteAtingido ? (
+            <Button variant="gold" size="md" icon={<Plus className="w-4 h-4" />} disabled title="Limite de fichas atingido. Peça autorização ao Mestre.">
               Criar Novo Personagem
             </Button>
-          </Link>
+          ) : (
+            <Link to="/criar">
+              <Button variant="gold" size="md" icon={<Plus className="w-4 h-4" />}>
+                Criar Novo Personagem
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -203,6 +224,12 @@ export const PersonagensPage: React.FC = () => {
                   ))}
                 </div>
 
+                {/* Moedas (quantidade física de cada tipo) */}
+                <div className="flex items-center gap-1.5 text-xs text-[#8c93a4] mb-2 min-w-0">
+                  <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="font-mono text-amber-200/90 truncate">{resumirMoedas(ficha.moedas)}</span>
+                </div>
+
                 {/* Defesa e Monstros Domados */}
                 <div className="flex items-center justify-between text-xs text-[#8c93a4] mb-4">
                   <div className="flex items-center gap-1.5">
@@ -218,19 +245,64 @@ export const PersonagensPage: React.FC = () => {
               </div>
 
               {/* Ação */}
-              <div className="pt-3 border-t border-[#252b3a]">
-                <Link to={`/fichas/${ficha.id}`} className="w-full">
+              <div className="pt-3 border-t border-[#252b3a] flex items-center gap-2">
+                <Link to={`/fichas/${ficha.id}`} className="flex-1">
                   <Button variant="dark" size="sm" className="w-full justify-between">
                     <span>Inspecionar Ficha</span>
                     <ArrowRight className="w-4 h-4 text-amber-400" />
                   </Button>
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => setFichaParaExcluir(ficha)}
+                  className="p-2 rounded bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 hover:border-red-500 text-red-400 hover:text-red-200 transition-all cursor-pointer"
+                  title={`Excluir ficha #${ficha.id} (${ficha.nome})`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </Card>
           ))}
         </div>
       )}
 
+      {/* Modal de Confirmação de Exclusão de Ficha */}
+      {fichaParaExcluir && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-[#10131d] border border-red-500/50 rounded-2xl shadow-2xl overflow-hidden p-6 text-left">
+            <div className="flex items-center gap-3 text-red-400 mb-4">
+              <AlertTriangle className="w-6 h-6 shrink-0" />
+              <h3 className="text-lg font-cinzel font-bold text-red-100">
+                Confirmar Exclusão de Personagem
+              </h3>
+            </div>
+            <p className="text-xs text-[#a0a8be] font-sans-clean leading-relaxed mb-6">
+              Tem certeza de que deseja apagar o personagem <strong className="text-amber-300 font-cinzel font-bold">{fichaParaExcluir.nome}</strong> (ID #{fichaParaExcluir.id})? Esta ação não pode ser desfeita e liberará um espaço em seu limite de fichas.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFichaParaExcluir(null)}
+                disabled={excluindo}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleExcluir}
+                loading={excluindo}
+                icon={<Trash2 className="w-3.5 h-3.5" />}
+              >
+                Sim, Excluir Personagem
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <PainelAvisos avisos={avisos} onFechar={fecharAviso} />
     </div>
   );
 };
