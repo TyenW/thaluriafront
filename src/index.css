@@ -1,0 +1,212 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-dark: #090a0f;
+    --bg-card: #12141c;
+    --bg-card-hover: #191c27;
+    --bg-elevated: #1f2331;
+    --border-dull: #252a38;
+    --border-gold: #c69219;
+    --border-gold-glow: rgba(212, 175, 55, 0.4);
+    --gold-primary: #d4af37;
+    --gold-bright: #ffd700;
+    --gold-muted: #9e782f;
+    --text-parchment: #e6dfcf;
+    --text-muted: #8c93a4;
+  }
+
+  body {
+    background-color: var(--bg-dark);
+    color: var(--text-parchment);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image: 
+      radial-gradient(ellipse at 50% 0%, rgba(212, 175, 55, 0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 90%, rgba(138, 43, 226, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 10% 70%, rgba(255, 69, 0, 0.04) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, .font-fantasy {
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.04em;
+  }
+}
+
+/* Custom Medieval & Dark Fantasy Utilities */
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.font-decorative {
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+}
+
+.font-sans-clean {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Painéis Estilo Grimório / Pergaminho Encadernado */
+.grimorio-card {
+  background: linear-gradient(145deg, rgba(21, 24, 34, 0.95) 0%, rgba(14, 16, 23, 0.98) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(212, 175, 55, 0.15) inset;
+  backdrop-filter: blur(8px);
+  position: relative;
+}
+
+.grimorio-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.6), transparent);
+}
+
+.pergaminho-card {
+  background: linear-gradient(135deg, #1b1713 0%, #13100d 100%);
+  border: 1px solid #453826;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(212, 175, 55, 0.1) inset;
+}
+
+/* Textos e Brilhos Dourados */
+.gold-gradient-text {
+  background: linear-gradient(135deg, #fff3c4 0%, #f7cc52 50%, #c69219 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.silver-gradient-text {
+  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #64748b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.fire-gradient-text {
+  background: linear-gradient(135deg, #fef08a 0%, #f97316 50%, #dc2626 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.frost-gradient-text {
+  background: linear-gradient(135deg, #e0f2fe 0%, #38bdf8 50%, #0284c7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+/* Botões Temáticos */
+.btn-gold {
+  background: linear-gradient(180deg, #d4af37 0%, #a67c1e 100%);
+  color: #0d0f12;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  border: 1px solid #f6d268;
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35), 0 1px 0 rgba(255, 255, 255, 0.4) inset;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-gold:hover {
+  background: linear-gradient(180deg, #f0c94d 0%, #bd8e24 100%);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.55), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  transform: translateY(-1px);
+}
+
+.btn-gold:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+}
+
+.btn-dark {
+  background: linear-gradient(180deg, #242938 0%, #151822 100%);
+  color: #e6dfcf;
+  font-family: 'Cinzel', serif;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-dark:hover {
+  border-color: rgba(212, 175, 55, 0.7);
+  background: linear-gradient(180deg, #2e3447 0%, #1c202d 100%);
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Moldura e Cantos Ornamentais */
+.ornament-corner {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: rgba(212, 175, 55, 0.7);
+}
+
+.ornament-corner-tl {
+  top: 3px;
+  left: 3px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+.ornament-corner-tr {
+  top: 3px;
+  right: 3px;
+  border-top: 2px solid;
+  border-right: 2px solid;
+}
+
+.ornament-corner-bl {
+  bottom: 3px;
+  left: 3px;
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+}
+
+.ornament-corner-br {
+  bottom: 3px;
+  right: 3px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+}
+
+/* Barra de rolagem temática */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d0f15;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2b3140;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f475d;
+  border-color: rgba(212, 175, 55, 0.6);
+}
+
+/* Animação suave de pulso arcano */
+@keyframes arcane-pulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
+  }
+}
+
+.pulse-arcane {
+  animation: arcane-pulse 3s infinite ease-in-out;
+}
