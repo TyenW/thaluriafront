@@ -26,6 +26,9 @@ export interface MonstroBestiario {
 }
 
 export interface ConteudoVisivelMundo {
+  /** Dia jogado da campanha. */
+  diaCampanha: number;
+  /** Relógio do mercado; fica à frente da campanha quando o Mestre simula dias sem jogá-los. */
   diaMercado: number;
   capitulosWiki: string[];
   cidades: CidadeVisivel[];

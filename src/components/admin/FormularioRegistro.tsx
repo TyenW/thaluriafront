@@ -1,6 +1,6 @@
 import React from 'react';
 import type { CampoEsquema, EntidadeEsquema, ValorRegistro } from '../../services/adminService';
-import { rotuloEnum } from '../../utils/formatadores';
+import { formatarLatao, rotuloEnum } from '../../utils/formatadores';
 import { CampoImagem } from '../common/CampoImagem';
 import { SeletorBusca } from '../common/SeletorBusca';
 
@@ -73,6 +73,22 @@ function agrupar(campos: CampoEsquema[]): { nome: string | null; campos: CampoEs
   return grupos;
 }
 
+/** Leitura humana do valor digitado: latão em moedas, chance em %, dado do golpe. */
+function dicaDoValor(c: CampoEsquema, valores: Record<string, ValorRegistro>): string | null {
+  const v = valores[c.coluna];
+  if (v === null || v === undefined || String(v).trim() === '') return null;
+  const n = Number(String(v).replace(',', '.'));
+  if (!Number.isFinite(n)) return null;
+  if (c.coluna.endsWith('_latao') && n > 0) return `= ${formatarLatao(n)}`;
+  if (c.tipo === 'REAL' && c.min === 0 && c.max === 1) return `= ${Math.round(n * 100)}% de chance`;
+  if (c.coluna === 'faces_dado') {
+    const qtd = Number(valores.qtd_dados);
+    const attrs = [valores.atributo_escala_1, valores.atributo_escala_2].filter(Boolean).join(' + ');
+    if (Number.isInteger(qtd) && qtd > 0 && n > 0) return `Dano: ${qtd}d${n}${attrs ? ` + ${attrs}` : ''}`;
+  }
+  return null;
+}
+
 export interface FormularioRegistroProps {
   entidade: EntidadeEsquema;
   valores: Record<string, ValorRegistro>;
@@ -95,9 +111,11 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
         {c.obrigatorio && c.tipo !== 'BOOLEANO' && <span className="text-red-300"> *</span>}
       </label>
     );
+    const dica = dicaDoValor(c, valores);
     const rodape = (
       <>
         {erro && <p className="text-[11px] text-red-300 mt-1">{erro}</p>}
+        {!erro && dica && <p className="text-[11px] font-mono text-amber-300/90 mt-1">{dica}</p>}
         {!erro && c.ajuda && !compacto && <p className="text-[11px] text-nevoa mt-1">{c.ajuda}</p>}
       </>
     );
@@ -238,8 +256,8 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
   return (
     <div className="space-y-5">
       {grupos.map((g, i) => {
-        // Blocos de muitos números curtos (ex.: os 6 atributos) ficam numa grade compacta.
-        const compacto = g.campos.length >= 4 && g.campos.every((c) => c.tipo === 'INTEIRO');
+        // Blocos de muitos números de rótulo curto (ex.: os 6 atributos) ficam numa grade compacta.
+        const compacto = g.campos.length >= 4 && g.campos.every((c) => c.tipo === 'INTEIRO' && c.rotulo.length <= 6);
         const grade = compacto ? 'grid grid-cols-3 sm:grid-cols-6 gap-2' : 'grid grid-cols-1 sm:grid-cols-2 gap-3';
         const corpo = <div className={grade}>{g.campos.map((c) => campo(c, compacto))}</div>;
         if (!g.nome) return <div key={`sem-grupo-${i}`}>{corpo}</div>;

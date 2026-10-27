@@ -9,7 +9,6 @@ import {
   UserCheck, 
   Globe, 
   Users, 
-  Calendar, 
   ArrowRight,
   Database,
   Shield,
@@ -21,13 +20,14 @@ import {
   Gift
 } from 'lucide-react';
 import { mundoService } from '../../services/mundoService';
+import { ControleTempo } from '../../components/comercio/ControleTempo';
 import { fichasService } from '../../services/fichasService';
 import type { FichaPersonagem } from '../../types/ficha';
 
 export const PainelMestrePage: React.FC = () => {
   const { avisos, avisar, fechar: fecharAviso } = useAvisos();
-  const [diaCampanha, setDiaCampanha] = useState<number>(1);
-  const [loading, setLoading] = useState(false);
+  const [diaCampanha, setDiaCampanha] = useState<number | null>(null);
+  const [diaMercado, setDiaMercado] = useState<number | null>(null);
   const [fichas, setFichas] = useState<FichaPersonagem[]>([]);
   const [loadingFichas, setLoadingFichas] = useState(true);
   const [buscaFicha, setBuscaFicha] = useState('');
@@ -63,23 +63,15 @@ export const PainelMestrePage: React.FC = () => {
     const carregar = async () => {
       try {
         const conteudo = await mundoService.obterConteudoVisivel('MESTRE');
-        setDiaCampanha(conteudo.diaMercado || 1);
+        // Servidor antigo mandava o dia da campanha em diaMercado
+        setDiaCampanha(conteudo.diaCampanha ?? conteudo.diaMercado ?? 1);
+        setDiaMercado(conteudo.diaMercado ?? null);
       } catch {}
     };
     carregar();
     carregarFichas();
   }, []);
 
-  const handleAvancarDia = async (dias = 1) => {
-    setLoading(true);
-    try {
-      const res = await mundoService.avancarDiaMercado(dias);
-      setDiaCampanha(res.diaAtual);
-    } catch {}
-    finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="space-y-8 text-left">
@@ -90,7 +82,10 @@ export const PainelMestrePage: React.FC = () => {
               <Crown className="w-3 h-3 text-amber-300" />
               <span>Painel do Mestre</span>
             </Badge>
-            <Badge variant="gold">Dia de Campanha #{diaCampanha}</Badge>
+            {diaCampanha != null && <Badge variant="gold">Dia de Campanha #{diaCampanha}</Badge>}
+            {diaCampanha != null && diaMercado != null && diaMercado > diaCampanha && (
+              <Badge variant="cyan">Mercado no dia {diaMercado}</Badge>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-cinzel font-bold text-pergaminho tracking-wide">
             Câmara de Controle da Campanha
@@ -100,17 +95,15 @@ export const PainelMestrePage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="gold"
-            size="sm"
-            onClick={() => handleAvancarDia(1)}
-            loading={loading}
-            icon={<Calendar className="w-3.5 h-3.5" />}
-          >
-            Avançar 1 Dia de Mercado
-          </Button>
-        </div>
+        <ControleTempo
+          diaCampanha={diaCampanha}
+          diaMercado={diaMercado}
+          avisar={avisar}
+          onPassou={(r) => {
+            setDiaCampanha(r.diaAtual);
+            setDiaMercado(r.diaMercado);
+          }}
+        />
       </div>
 
       {/* Grid de Ferramentas Principais do Mestre */}

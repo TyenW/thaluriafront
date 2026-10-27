@@ -26,8 +26,9 @@ export const GuiaComercio: React.FC = () => (
         com ilustração aparecem com a imagem na prateleira.
       </Passo>
       <Passo n={2} titulo="Deixe o mundo girar">
-        “Avançar 1 dia” simula o mercado: clientes compram, fornecedores entregam por caravana e as oficinas produzem sozinhas o que dá lucro. Os alertas (caixa baixo,
-        prateleira vazia, oficina parada) mostram quem precisa de você.
+        “Avançar 1 dia” simula o mercado: clientes compram, fornecedores entregam por caravana e as oficinas produzem sozinhas o que dá lucro. Em “Passar tempo…” você
+        avança vários dias de uma vez ou escolhe “Só simular o mercado”: as lojas trabalham sem passar o dia da campanha (ótimo para aquecer o mundo antes da primeira
+        sessão). Os alertas (caixa baixo, prateleira vazia, oficina parada) mostram quem precisa de você.
       </Passo>
       <Passo n={3} titulo="Venda aos jogadores">
         Na aba Estoque, “Vender a jogador” põe o item no inventário da ficha. O preço vem do balcão (sobe na escassez, cai na fartura) e você pode mudá-lo ou entregar sem

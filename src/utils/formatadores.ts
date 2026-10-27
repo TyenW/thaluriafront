@@ -16,8 +16,11 @@ export function getCorPerigo(perigo: number): { texto: string; fundo: string; bo
   return { texto: 'text-red-400', fundo: 'bg-red-950/40', borda: 'border-red-600/40' };
 }
 
-/** "ARMA_BRANCA" -> "Arma branca" (apresentação de enums vindos do servidor). */
+const SIGLAS_ATRIBUTO = new Set(['VIG', 'FOR', 'DES', 'MEN', 'ESP', 'VON']);
+
+/** "ARMA_BRANCA" -> "Arma branca" (apresentação de enums vindos do servidor). Siglas de atributo (FOR, VIG...) ficam como estão. */
 export function rotuloEnum(valor: string): string {
+  if (SIGLAS_ATRIBUTO.has(valor)) return valor;
   const t = valor.replace(/_/g, ' ').toLowerCase();
   return t.charAt(0).toUpperCase() + t.slice(1);
 }

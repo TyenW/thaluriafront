@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, Eye, MapPin, Pencil, Plus, Route, Save } from 'lucide-react';
-import { adminService, type EntidadeEsquema, type Registro, type ValorRegistro } from '../../services/adminService';
+import { AlertTriangle, ChevronDown, Eye, MapPin, Pencil, Plus, Route, Save } from 'lucide-react';
+import { adminService, ENTIDADES_COM_LIGACOES, type EntidadeEsquema, type Registro, type ValorRegistro } from '../../services/adminService';
 import { distanciaKmSugerida } from '../map/tracadoRotas';
 import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
@@ -8,6 +8,7 @@ import { CartaoMonstro } from '../bestiario/CartaoMonstro';
 import { FormularioRegistro, validarCampos, valoresPadrao } from './FormularioRegistro';
 import { MapaEditor, avisosDePosicao, tracadoDaRota } from './MapaEditor';
 import { SubLista } from './SubLista';
+import { PainelLigacoes } from './PainelLigacoes';
 import { cidadesDoEditor, monstroDoFormulario, numeroOuNulo, opcoesDe, tituloDe, type Avisar, type Referencias } from './registros';
 
 export interface ModalRegistroProps {
@@ -21,10 +22,14 @@ export interface ModalRegistroProps {
   onFechar: () => void;
   onSalvo: (id: string) => void;
   avisar: Avisar;
+  /** Abre outro registro (painel de ligações). */
+  onAbrir?: (entidade: string, id: string) => void;
+  /** Depois de salvar um registro novo, abre outro em branco. */
+  onCriarOutro?: () => void;
 }
 
 /** Editor de um registro do mundo; cidades e rotas ganham mapa, monstros ganham pré-visualização. */
-export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema, registro, paiId, valoresIniciais, refs, onFechar, onSalvo, avisar }) => {
+export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema, registro, paiId, valoresIniciais, refs, onFechar, onSalvo, avisar, onAbrir, onCriarOutro }) => {
   const [idAtual, setIdAtual] = useState<string | null>(registro ? String(registro.id) : null);
   const [valores, setValores] = useState<Record<string, ValorRegistro>>(() => ({ ...(registro ? { ...registro } : valoresPadrao(entidade)), ...valoresIniciais }));
   const [chaveTexto, setChaveTexto] = useState('');
@@ -33,7 +38,11 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
   const [erroServidor, setErroServidor] = useState<string | null>(null);
   // Retrato do que está salvo, para avisar antes de fechar e perder alterações.
   const [salvo, setSalvo] = useState(() => JSON.stringify(valores));
-  const [confirmandoSaida, setConfirmandoSaida] = useState(false);
+  // Saída pedida com alterações pendentes (fechar ou abrir outro registro): espera confirmação.
+  const [saidaPendente, setSaidaPendente] = useState<(() => void) | null>(null);
+  const confirmandoSaida = saidaPendente !== null;
+  const [versaoLigacoes, setVersaoLigacoes] = useState(0);
+  const [mostrarPrevia, setMostrarPrevia] = useState(false);
   const sujo = JSON.stringify(valores) !== salvo || (!idAtual && chaveTexto.trim() !== '');
 
   const ehCidade = entidade.id === 'cidades';
@@ -46,13 +55,14 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
   const alterar = (coluna: string, v: ValorRegistro) => {
     setValores((atual) => ({ ...atual, [coluna]: v }));
     setErroServidor(null);
-    setConfirmandoSaida(false);
+    setSaidaPendente(null);
   };
 
-  const pedirFechar = () => {
-    if (sujo && !confirmandoSaida) setConfirmandoSaida(true);
-    else onFechar();
+  const sair = (acao: () => void) => {
+    if (sujo && !confirmandoSaida) setSaidaPendente(() => acao);
+    else acao();
   };
+  const pedirFechar = () => sair(onFechar);
 
   // Cidades: posição no mapa
   const posicao =
@@ -74,7 +84,7 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
   }
   if (tracado?.impossivel && tracado.motivo) avisosRota.push(tracado.motivo);
 
-  const salvar = async () => {
+  const salvar = async (criarOutro = false) => {
     setTentou(true);
     if (Object.keys(erros).length > 0) {
       setErroServidor('Corrija os campos destacados antes de salvar.');
@@ -88,8 +98,10 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
       const novoId = await adminService.salvar(entidade.id, dados);
       avisar('sucesso', `Registro salvo em ${entidade.rotulo}.`);
       onSalvo(novoId);
+      setVersaoLigacoes((v) => v + 1);
+      if (criarOutro && onCriarOutro) onCriarOutro();
       // Registro novo com filhos (golpes, insumos...): continua aberto para cadastrá-los.
-      if (!idAtual && filhos.length > 0) {
+      else if (!idAtual && filhos.length > 0) {
         setIdAtual(novoId);
         setSalvo(JSON.stringify(valores));
       } else onFechar();
@@ -193,10 +205,10 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
               <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" /> Há alterações não salvas.
             </span>
             <span className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setConfirmandoSaida(false)}>
+              <Button variant="ghost" size="sm" onClick={() => setSaidaPendente(null)}>
                 Continuar editando
               </Button>
-              <Button variant="outline" size="sm" className="text-red-200 border-red-700/60 hover:bg-red-950/40" onClick={onFechar}>
+              <Button variant="outline" size="sm" className="text-red-200 border-red-700/60 hover:bg-red-950/40" onClick={() => saidaPendente?.()}>
                 Descartar
               </Button>
             </span>
@@ -207,13 +219,22 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
           <Button variant="ghost" size="sm" onClick={pedirFechar} disabled={salvando}>
             {idAtual && filhos.length > 0 && !sujo ? 'Fechar' : 'Cancelar'}
           </Button>
-          <Button id="btn-admin-salvar" variant="gold" size="sm" icon={<Save className="w-3.5 h-3.5" />} loading={salvando} onClick={salvar}>
+          {!idAtual && filhos.length === 0 && onCriarOutro && (
+            <Button variant="outline" size="sm" icon={<Plus className="w-3.5 h-3.5" />} disabled={salvando} onClick={() => salvar(true)}>
+              Salvar e criar outro
+            </Button>
+          )}
+          <Button id="btn-admin-salvar" variant="gold" size="sm" icon={<Save className="w-3.5 h-3.5" />} loading={salvando} onClick={() => salvar()}>
             {!idAtual && filhos.length > 0 ? `Salvar e cadastrar ${filhos.map((f) => f.rotulo.toLowerCase()).join(' e ')}` : 'Salvar'}
           </Button>
         </div>
       </div>
 
-      {idAtual && filhos.map((f) => <SubLista key={f.id} entidade={f} esquema={esquema} paiId={idAtual} refs={refs} avisar={avisar} />)}
+      {idAtual && filhos.map((f) => <SubLista key={f.id} entidade={f} esquema={esquema} paiId={idAtual} pai={valores} refs={refs} avisar={avisar} onMudou={() => setVersaoLigacoes((v) => v + 1)} />)}
+
+      {idAtual && onAbrir && ENTIDADES_COM_LIGACOES.includes(entidade.id) && (
+        <PainelLigacoes entidade={entidade.id} id={idAtual} versao={versaoLigacoes} onAbrir={(e, id) => sair(() => onAbrir(e, id))} />
+      )}
     </div>
   );
 
@@ -231,10 +252,17 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
           {formulario}
           <aside className="order-first lg:order-none">
             <div className="lg:sticky lg:top-4 space-y-2">
-              <p className="flex items-center gap-1.5 text-[11px] font-cinzel font-bold uppercase tracking-widest text-nevoa">
+              {/* No celular a prévia fica recolhida para o formulário vir primeiro. */}
+              <button
+                type="button"
+                onClick={() => setMostrarPrevia((v) => !v)}
+                aria-expanded={mostrarPrevia}
+                className="w-full flex items-center gap-1.5 text-[11px] font-cinzel font-bold uppercase tracking-widest text-nevoa lg:pointer-events-none cursor-pointer"
+              >
                 <Eye className="w-3.5 h-3.5" /> Como os jogadores verão
-              </p>
-              <div className="max-w-xs mx-auto lg:max-w-none">
+                <ChevronDown className={`w-3.5 h-3.5 ml-auto lg:hidden transition-transform ${mostrarPrevia ? 'rotate-180' : ''}`} aria-hidden="true" />
+              </button>
+              <div className={`max-w-xs mx-auto lg:max-w-none ${mostrarPrevia ? '' : 'hidden lg:block'}`}>
                 <CartaoMonstro monstro={monstroDoFormulario(valores, idAtual)} previa />
               </div>
             </div>

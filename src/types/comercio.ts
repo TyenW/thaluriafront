@@ -22,7 +22,10 @@ export interface ResumoLoja {
 }
 
 export interface ResumoComercio {
+  /** Dia do mercado (livro-caixa, produção). */
   dia: number;
+  /** Dia jogado da campanha; menor que dia quando o mercado foi simulado à frente. */
+  diaCampanha?: number;
   diasDoResumo: number;
   totais: {
     lojas: number;
@@ -131,6 +134,7 @@ export interface MovimentoCaixa {
 
 export interface DetalheLoja {
   dia: number;
+  diaCampanha?: number;
   loja: ResumoLoja;
   estoque: MercadoriaLoja[];
   receitas: ReceitaComercio[];

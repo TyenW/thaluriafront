@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Database, Plus, RefreshCw, Search, X } from 'lucide-react';
+import { AlertTriangle, Database, LayoutGrid, List, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { adminService, type EntidadeEsquema, type Registro } from '../../services/adminService';
 import { ModalRegistro } from '../../components/admin/ModalRegistro';
 import { TabelaRegistros } from '../../components/admin/TabelaRegistros';
-import { formatarCelula, tituloDe, type Referencias } from '../../components/admin/registros';
+import { colunaImagem, formatarCelula, tituloDe, type Referencias } from '../../components/admin/registros';
+import { SeletorBusca } from '../../components/common/SeletorBusca';
+import { useEstadoPersistido } from '../../hooks/useEstadoPersistido';
 import { Abas } from '../../components/common/Abas';
 import { CabecalhoPagina } from '../../components/common/CabecalhoPagina';
 import { Card } from '../../components/common/Card';
@@ -29,6 +31,11 @@ export const GerenciarMundoPage: React.FC = () => {
   const [erro, setErro] = useState<string | null>(null);
   const [refs, setRefs] = useState<Referencias>({});
   const [registros, setRegistros] = useState<Registro[]>([]);
+  // De qual entidade é a lista carregada (evita abrir o registro errado logo após trocar de aba).
+  const [listaDe, setListaDe] = useState<string | null>(null);
+  const [filtros, setFiltros] = useState<Record<string, string>>({});
+  const [visao, setVisao] = useEstadoPersistido<'lista' | 'grade'>('admin:visao', 'lista');
+  const [seqNovo, setSeqNovo] = useState(0);
   const [carregandoLista, setCarregandoLista] = useState(false);
   const [busca, setBusca] = useState('');
   const [editando, setEditando] = useState<Registro | null | 'novo'>(null);
@@ -71,7 +78,10 @@ export const GerenciarMundoPage: React.FC = () => {
     setCarregandoLista(true);
     try {
       const lista = await adminService.listar(entidade.id);
-      if (pedido === pedidoAtual.current) setRegistros(lista);
+      if (pedido === pedidoAtual.current) {
+        setRegistros(lista);
+        setListaDe(entidade.id);
+      }
     } catch (err: any) {
       if (pedido === pedidoAtual.current) avisar('erro', err.message || 'Não foi possível carregar a lista.');
     } finally {
@@ -93,9 +103,36 @@ export const GerenciarMundoPage: React.FC = () => {
   // Troca de entidade: limpa a lista anterior para não exibi-la com as colunas da nova.
   useEffect(() => {
     setRegistros([]);
+    setListaDe(null);
     setBusca('');
     setSoSemOrigem(false);
+    setFiltros({});
   }, [entidade?.id]);
+
+  // Link direto para um registro (?entidade=itens&abrir=65), usado também pelo painel de ligações.
+  const abrirParam = searchParams.get('abrir');
+  useEffect(() => {
+    if (!abrirParam || !entidade || listaDe !== entidade.id) return;
+    if (editando && editando !== 'novo' && String(editando.id) === abrirParam) return;
+    const r = registros.find((x) => String(x.id) === abrirParam);
+    if (r) {
+      setPreenchido(undefined);
+      setEditando(r);
+    } else {
+      avisar('erro', `Registro #${abrirParam} não encontrado em ${entidade.rotulo.toLowerCase()}.`);
+      setSearchParams({ entidade: entidade.id }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirParam, listaDe, registros]);
+
+  const abrirRegistro = (entidadeId: string, id: string) => {
+    setEditando(null);
+    setSearchParams({ entidade: entidadeId, abrir: id });
+  };
+  const fecharEditor = () => {
+    setEditando(null);
+    if (abrirParam && entidade) setSearchParams({ entidade: entidade.id }, { replace: true });
+  };
 
   useEffect(() => {
     carregarLista();
@@ -143,17 +180,43 @@ export const GerenciarMundoPage: React.FC = () => {
   };
 
   const colunas = entidade?.campos.filter((c) => c.naLista) ?? [];
+  // Filtros nascem das colunas de lista com valores fechados; só mostram valores que existem.
+  const colunasFiltro = entidade
+    ? colunas
+        .filter((c) => c.tipo === 'ENUM' || c.tipo === 'BOOLEANO' || c.tipo === 'REFERENCIA')
+        .map((c) => {
+          const contagem = new Map<string, number>();
+          for (const r of registros) {
+            const v = r[c.coluna];
+            if (v === null || v === undefined || v === '') continue;
+            contagem.set(String(v), (contagem.get(String(v)) ?? 0) + 1);
+          }
+          const opcoes = [...contagem.entries()]
+            .map(([valor, n]) => ({ valor, rotulo: `${formatarCelula(entidade, c.coluna, c.tipo === 'BOOLEANO' ? valor === 'true' : valor, esquema, refs)} (${n})` }))
+            .sort((a, b) => a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
+          return { campo: c, opcoes };
+        })
+        .filter((f) => f.opcoes.length > 1 || filtros[f.campo.coluna])
+    : [];
   const termo = busca.trim().toLowerCase();
   const filtrados = entidade
     ? registros.filter(
         (r) =>
           (!soSemOrigem || semOrigem.has(String(r.id))) &&
+          Object.entries(filtros).every(([coluna, valor]) => !valor || String(r[coluna]) === valor) &&
           (!termo ||
             tituloDe(entidade, r, refs).toLowerCase().includes(termo) ||
             colunas.some((c) => formatarCelula(entidade, c.coluna, r[c.coluna], esquema, refs).toLowerCase().includes(termo)))
       )
     : [];
-  const filtrando = !!termo || soSemOrigem;
+  const filtrosAtivos = Object.values(filtros).filter(Boolean).length;
+  const filtrando = !!termo || soSemOrigem || filtrosAtivos > 0;
+  const limparFiltros = () => {
+    setBusca('');
+    setSoSemOrigem(false);
+    setFiltros({});
+  };
+  const temImagem = !!entidade && !!colunaImagem(entidade);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 text-left pb-16">
@@ -238,10 +301,67 @@ export const GerenciarMundoPage: React.FC = () => {
                     Só sem origem ({semOrigem.size})
                   </button>
                 )}
+                {temImagem && (
+                  <div role="group" aria-label="Modo de exibição" className="hidden sm:flex shrink-0 p-0.5 rounded-lg border border-linha-forte">
+                    {(['lista', 'grade'] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        aria-pressed={visao === v}
+                        onClick={() => setVisao(v)}
+                        title={v === 'lista' ? 'Lista' : 'Grade com imagens'}
+                        aria-label={v === 'lista' ? 'Ver em lista' : 'Ver em grade'}
+                        className={`p-1.5 rounded-md cursor-pointer ${visao === v ? 'bg-ouro/20 text-amber-300' : 'text-nevoa hover:text-texto'}`}
+                      >
+                        {v === 'lista' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {colunasFiltro.length > 0 && (
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+                  {colunasFiltro.map(({ campo, opcoes }) => (
+                    <div key={campo.coluna} className="min-w-0 sm:w-44">
+                      <label htmlFor={`filtro-${campo.coluna}`} className="block text-[10px] font-cinzel uppercase tracking-wider text-nevoa mb-0.5">
+                        {campo.rotulo}
+                      </label>
+                      {opcoes.length > 8 ? (
+                        <SeletorBusca
+                          id={`filtro-${campo.coluna}`}
+                          valor={filtros[campo.coluna] ?? ''}
+                          opcoes={opcoes}
+                          onAlterar={(v) => setFiltros((f) => ({ ...f, [campo.coluna]: v ?? '' }))}
+                          placeholder="Todos"
+                          permitirVazio
+                        />
+                      ) : (
+                        <select
+                          id={`filtro-${campo.coluna}`}
+                          value={filtros[campo.coluna] ?? ''}
+                          onChange={(e) => setFiltros((f) => ({ ...f, [campo.coluna]: e.target.value }))}
+                          className={`campo !py-1.5 text-xs ${filtros[campo.coluna] ? '!border-ouro/60' : ''}`}
+                        >
+                          <option value="">Todos</option>
+                          {opcoes.map((o) => (
+                            <option key={o.valor} value={o.valor}>
+                              {o.rotulo}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {filtrando && !carregandoLista && registros.length > 0 && (
-                <p className="text-[11px] text-nevoa" aria-live="polite">
+                <p className="flex flex-wrap items-center gap-2 text-[11px] text-nevoa" aria-live="polite">
                   Mostrando {filtrados.length} de {registros.length}.
+                  <button type="button" onClick={limparFiltros} className="text-amber-400 hover:text-amber-300 underline cursor-pointer">
+                    Limpar filtros
+                  </button>
                 </p>
               )}
 
@@ -259,14 +379,7 @@ export const GerenciarMundoPage: React.FC = () => {
                       Cadastrar o primeiro
                     </Button>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setBusca('');
-                        setSoSemOrigem(false);
-                      }}
-                    >
+                    <Button variant="outline" size="sm" onClick={limparFiltros}>
                       Limpar filtros
                     </Button>
                   )}
@@ -280,8 +393,10 @@ export const GerenciarMundoPage: React.FC = () => {
                   onEditar={(r) => {
                     setPreenchido(undefined);
                     setEditando(r);
+                    setSearchParams({ entidade: entidade.id, abrir: String(r.id) }, { replace: true });
                   }}
                   onExcluir={setParaExcluir}
+                  visao={temImagem ? visao : 'lista'}
                   selo={ehItens ? (r) => semOrigem.has(String(r.id)) && <Badge variant="danger">Sem origem</Badge> : undefined}
                 />
               )}
@@ -292,15 +407,21 @@ export const GerenciarMundoPage: React.FC = () => {
 
       {editando && entidade && (
         <ModalRegistro
-          key={editando === 'novo' ? 'novo' : String(editando.id)}
+          key={editando === 'novo' ? `novo-${seqNovo}` : `${entidade.id}-${editando.id}`}
           entidade={entidade}
           esquema={esquema}
           registro={editando === 'novo' ? null : editando}
           valoresIniciais={preenchido}
           refs={refs}
-          onFechar={() => setEditando(null)}
+          onFechar={fecharEditor}
           onSalvo={aoSalvar}
           avisar={avisar}
+          onAbrir={abrirRegistro}
+          onCriarOutro={() => {
+            setPreenchido(undefined);
+            setSeqNovo((n) => n + 1);
+            setEditando('novo');
+          }}
         />
       )}
 

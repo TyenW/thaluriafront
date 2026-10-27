@@ -3,6 +3,15 @@ import type { ConteudoVisivelMundo } from '../types/monstro';
 import type { SessaoCriacaoAtiva } from '../types/ficha';
 import type { PapelUsuario } from '../types/usuario';
 
+export type ModoTempo = 'AVANCAR_DIA' | 'SIMULAR_MERCADO';
+
+/** diaAtual = dia da campanha; diaMercado = relógio do mercado (pode estar à frente). */
+export interface RelogioMundo {
+  status: string;
+  diaAtual: number;
+  diaMercado: number;
+}
+
 export const mundoService = {
   async obterConteudoVisivel(papel: PapelUsuario): Promise<ConteudoVisivelMundo> {
     return requestApi<ConteudoVisivelMundo>('/api/conteudo/visivel', {
@@ -29,10 +38,16 @@ export const mundoService = {
     });
   },
 
-  async avancarDiaMercado(dias = 1): Promise<{ status: string; diaAtual: number }> {
-    return requestApi<{ status: string; diaAtual: number }>('/api/mestre/controle-mundo', {
+  /**
+   * Passa o tempo do mundo. AVANCAR_DIA anda a campanha e o mercado; SIMULAR_MERCADO só o mercado
+   * (lojas, produção, encomendas, caravanas), sem passar o dia nem espalhar conhecimento.
+   */
+  async passarTempo(modo: ModoTempo, dias = 1): Promise<RelogioMundo> {
+    return requestApi<RelogioMundo>('/api/mestre/controle-mundo', {
       method: 'POST',
-      body: { acao: 'AVANCAR_DIA', dias },
+      body: { acao: modo, dias },
+      // Um ano de mercado leva alguns segundos no servidor
+      timeoutMs: 15000 + dias * 150,
     });
   },
 

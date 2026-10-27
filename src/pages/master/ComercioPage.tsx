@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, RefreshCw, Store } from 'lucide-react';
 import type { DetalheLoja, ResumoComercio } from '../../types/comercio';
 import { comercioService } from '../../services/comercioService';
-import { mundoService } from '../../services/mundoService';
+import { ControleTempo } from '../../components/comercio/ControleTempo';
 import { CabecalhoPagina } from '../../components/common/CabecalhoPagina';
 import { Button } from '../../components/common/Button';
 import { PainelAvisos, useAvisos } from '../../components/common/Avisos';
@@ -18,7 +18,6 @@ export const ComercioPage: React.FC = () => {
   const [resumo, setResumo] = useState<ResumoComercio | null>(null);
   const [detalhe, setDetalhe] = useState<DetalheLoja | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [avancando, setAvancando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const { avisos, avisar, fechar } = useAvisos();
 
@@ -45,20 +44,8 @@ export const ComercioPage: React.FC = () => {
     setSearchParams({});
   };
 
-  const avancarDia = async () => {
-    setAvancando(true);
-    try {
-      const r = await mundoService.avancarDiaMercado(1);
-      avisar('sucesso', `Um dia de mercado se passou. Agora é o dia ${r.diaAtual ?? '?'}.`);
-      await carregar();
-    } catch (err: any) {
-      avisar('erro', err.message || 'Não foi possível avançar o dia.');
-    } finally {
-      setAvancando(false);
-    }
-  };
-
   const dia = (lojaId ? detalhe?.dia : resumo?.dia) ?? null;
+  const diaCampanha = (lojaId ? detalhe?.diaCampanha : resumo?.diaCampanha) ?? dia;
 
   return (
     <div className="space-y-6 text-left pb-16">
@@ -72,13 +59,16 @@ export const ComercioPage: React.FC = () => {
         }
         acoes={
           <>
-            {dia != null && <span className="text-xs font-cinzel text-nevoa">Dia {dia}</span>}
+            {dia != null && (
+              <span className="text-xs font-cinzel text-nevoa" title={dia !== diaCampanha ? 'O mercado foi simulado à frente da campanha' : undefined}>
+                Dia {diaCampanha}
+                {dia !== diaCampanha && <span className="text-amber-300/90"> · mercado no dia {dia}</span>}
+              </span>
+            )}
             <Button variant="outline" size="sm" icon={<RefreshCw className="w-3.5 h-3.5" />} onClick={carregar} loading={carregando}>
               Atualizar
             </Button>
-            <Button variant="gold" size="sm" onClick={avancarDia} loading={avancando} title="Simula um dia: clientes compram, fornecedores entregam, oficinas produzem">
-              Avançar 1 dia
-            </Button>
+            <ControleTempo diaCampanha={diaCampanha} diaMercado={dia} avisar={avisar} onPassou={() => carregar()} />
           </>
         }
       />

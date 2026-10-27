@@ -40,7 +40,24 @@ export interface EntidadeEsquema {
 export type ValorRegistro = string | number | boolean | null;
 export type Registro = { id: string | number } & Record<string, ValorRegistro>;
 
+/** Registros ligados a um item, receita ou monstro (quem produz, usa, dropa, vende...). */
+export interface GrupoLigacoes {
+  titulo: string;
+  /** Entidade aberta ao clicar num item do grupo; null = só informativo. */
+  entidade: string | null;
+  vazio: string;
+  itens: { id: string | number | null; nome: string; detalhe: string | null }[];
+}
+
+/** Entidades com painel de ligações no servidor. */
+export const ENTIDADES_COM_LIGACOES = ['itens', 'receitas', 'monstros'];
+
 export const adminService = {
+  async ligacoes(entidade: string, id: string | number): Promise<GrupoLigacoes[]> {
+    const r = await requestApi<GrupoLigacoes[]>('/api/admin/ligacoes', { params: { entidade, id: String(id) } });
+    return Array.isArray(r) ? r : [];
+  },
+
   async esquema(): Promise<EntidadeEsquema[]> {
     const r = await requestApi<EntidadeEsquema[]>('/api/admin/esquema');
     return Array.isArray(r) ? r : [];
