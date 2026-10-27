@@ -15,6 +15,8 @@ export interface ModalRegistroProps {
   esquema: EntidadeEsquema[];
   registro: Registro | null;
   paiId?: string;
+  /** Valores que já chegam preenchidos (ex.: item produzido ao criar receita a partir de um item). */
+  valoresIniciais?: Record<string, ValorRegistro>;
   refs: Referencias;
   onFechar: () => void;
   onSalvo: (id: string) => void;
@@ -22,9 +24,9 @@ export interface ModalRegistroProps {
 }
 
 /** Editor de um registro do mundo; cidades e rotas ganham mapa, monstros ganham pré-visualização. */
-export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema, registro, paiId, refs, onFechar, onSalvo, avisar }) => {
+export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema, registro, paiId, valoresIniciais, refs, onFechar, onSalvo, avisar }) => {
   const [idAtual, setIdAtual] = useState<string | null>(registro ? String(registro.id) : null);
-  const [valores, setValores] = useState<Record<string, ValorRegistro>>(() => (registro ? { ...registro } : valoresPadrao(entidade)));
+  const [valores, setValores] = useState<Record<string, ValorRegistro>>(() => ({ ...(registro ? { ...registro } : valoresPadrao(entidade)), ...valoresIniciais }));
   const [chaveTexto, setChaveTexto] = useState('');
   const [tentou, setTentou] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -33,7 +35,8 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
   const ehCidade = entidade.id === 'cidades';
   const ehRota = entidade.id === 'rotas';
   const ehMonstro = entidade.id === 'monstros';
-  const filhos = esquema.filter((e) => e.pai === entidade.id);
+  // Sublistas condicionais (ex.: locais de coleta) só aparecem com o interruptor do pai marcado.
+  const filhos = esquema.filter((e) => e.pai === entidade.id && (!e.visivelSePai || valores[e.visivelSePai] === true));
   const erros = validarCampos(entidade, valores);
   const opcoes = useMemo(() => opcoesDe(esquema, refs), [esquema, refs]);
   const alterar = (coluna: string, v: ValorRegistro) => {

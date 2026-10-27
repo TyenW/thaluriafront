@@ -53,10 +53,14 @@ export const ControleMundoPage: React.FC = () => {
     }
   };
 
-  const handleRevelarMonstro = async (id: string) => {
+  /** O Mestre sempre vê a ficha completa; o que importa aqui é o que os jogadores enxergam. */
+  const visivelAoJogador = (m: { revelado: boolean; reveladoJogador?: boolean }) => m.reveladoJogador ?? m.revelado;
+
+  const handleAlternarMonstro = async (id: string, revelar: boolean) => {
     setAcaoLoading(id);
     try {
-      await mundoService.revelarMonstro(id);
+      if (revelar) await mundoService.revelarMonstro(id);
+      else await mundoService.ocultarMonstro(id);
       await carregar();
     } catch {
     } finally {
@@ -119,7 +123,7 @@ export const ControleMundoPage: React.FC = () => {
 
   const totalCapitulosLiberados = conteudo?.capitulosWiki?.length ?? 0;
   const totalMonstrosRevelados =
-    conteudo?.bestiario?.filter((b) => b.revelado).length ?? 0;
+    conteudo?.bestiario?.filter((b) => visivelAoJogador(b)).length ?? 0;
   const totalRotasAtivas = conteudo?.rotas?.length ?? 0;
 
   return (
@@ -410,14 +414,14 @@ export const ControleMundoPage: React.FC = () => {
                 </div>
 
                 <Button
-                  variant={m.revelado ? 'dark' : 'gold'}
+                  variant={visivelAoJogador(m) ? 'dark' : 'gold'}
                   size="sm"
                   loading={acaoLoading === m.id}
-                  onClick={() => handleRevelarMonstro(m.id)}
-                  disabled={m.revelado}
-                  icon={<Eye className="h-3.5 w-3.5" />}
+                  onClick={() => handleAlternarMonstro(m.id, !visivelAoJogador(m))}
+                  icon={visivelAoJogador(m) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  title={visivelAoJogador(m) ? 'Os jogadores veem esta criatura. Clique para escondê-la de novo.' : undefined}
                 >
-                  {m.revelado ? 'Visível ao Jogador' : 'Revelar Fera'}
+                  {visivelAoJogador(m) ? 'Desrevelar' : 'Revelar Fera'}
                 </Button>
               </div>
             ))}

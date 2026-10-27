@@ -3,6 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Database,
+  Store,
+  Anvil,
+  Waypoints,
   Shield, 
   Map as MapIcon, 
   BookOpen, 
@@ -63,6 +66,9 @@ export const Navbar: React.FC = () => {
     { label: 'Fog-of-War', path: '/mestre/mundo', icon: <Globe className="w-4 h-4" /> },
     { label: 'Mapa', path: '/mapa', icon: <MapIcon className="w-4 h-4" /> },
     { label: 'Jogadores', path: '/mestre/jogadores', icon: <Users className="w-4 h-4" /> },
+    { label: 'Comércio', path: '/mestre/comercio', icon: <Store className="w-4 h-4" /> },
+    { label: 'Forja', path: '/mestre/forja', icon: <Anvil className="w-4 h-4" /> },
+    { label: 'Disseminação', path: '/mestre/disseminacao', icon: <Waypoints className="w-4 h-4" /> },
     { label: 'Gerenciar', path: '/mestre/gerenciar', icon: <Database className="w-4 h-4" /> },
   ];
 

@@ -1,4 +1,5 @@
 import { requestApi } from './api';
+import type { AuditoriaOrigens } from '../types/catalogo';
 
 export type TipoCampo = 'TEXTO' | 'TEXTO_LONGO' | 'INTEIRO' | 'REAL' | 'BOOLEANO' | 'ENUM' | 'REFERENCIA' | 'IMAGEM';
 
@@ -17,6 +18,8 @@ export interface CampoEsquema {
   naLista: boolean;
   /** Seção do formulário (ex.: "Atributos base"); null = sem seção. */
   grupo?: string | null;
+  /** Coluna booleana que precisa estar marcada para o campo aparecer. */
+  visivelSe?: string | null;
 }
 
 export interface EntidadeEsquema {
@@ -28,6 +31,8 @@ export interface EntidadeEsquema {
   /** Entidade-mãe (registros filhos, ex.: golpes de um monstro). */
   pai: string | null;
   colunaPai: string | null;
+  /** Coluna booleana do registro pai que precisa estar marcada para a sublista aparecer. */
+  visivelSePai?: string | null;
   afetaMundo: boolean;
   campos: CampoEsquema[];
 }
@@ -55,6 +60,11 @@ export const adminService = {
     }
     const r = await requestApi<{ id: string | number }>('/api/admin/salvar', { method: 'POST', body });
     return String(r.id);
+  },
+
+  /** De onde vem cada item (coleta, drop, receita) e quais não têm origem nenhuma. */
+  origensDosItens(): Promise<AuditoriaOrigens> {
+    return requestApi<AuditoriaOrigens>('/api/mestre/itens/origens');
   },
 
   async excluir(entidade: string, id: string | number): Promise<void> {

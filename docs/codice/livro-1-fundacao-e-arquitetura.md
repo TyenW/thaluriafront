@@ -73,6 +73,7 @@ src/
 │   ├── common/             Peças de uso geral (ver Livro V)
 │   ├── admin/              Gerenciador do mundo (formulário por esquema, tabela, modal, sublista)
 │   ├── bestiario/          CartaoMonstro: a entrada do bestiário
+│   ├── comercio/           Aba de Comércio do Mestre (lista, painel da loja, abas e modais)
 │   ├── ficha/              Abas e modais da ficha de personagem
 │   ├── layout/             Navbar
 │   └── map/                O atlas (ver § 3)

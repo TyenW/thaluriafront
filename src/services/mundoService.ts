@@ -20,7 +20,7 @@ export const mundoService = {
 
   async intervirSessao(
     usuarioId: number,
-    acao: 'DICA' | 'REROLL' | 'IMPULSO_DRACONICO' | 'APROVAR',
+    acao: 'DICA' | 'REROLL' | 'REROLL_RACA' | 'IMPULSO_DRACONICO' | 'APROVAR' | 'REINICIAR',
     dica?: string
   ): Promise<{ status: string; acaoAplicada: string }> {
     return requestApi<{ status: string; acaoAplicada: string }>('/api/mestre/assistir-sessao', {
@@ -40,6 +40,13 @@ export const mundoService = {
     return requestApi<{ status: string }>('/api/mestre/controle-mundo', {
       method: 'POST',
       body: { acao: 'REVELAR_MONSTRO', monstroId },
+    });
+  },
+
+  async ocultarMonstro(monstroId: string): Promise<{ status: string }> {
+    return requestApi<{ status: string }>('/api/mestre/controle-mundo', {
+      method: 'POST',
+      body: { acao: 'OCULTAR_MONSTRO', monstroId },
     });
   },
 

@@ -18,7 +18,11 @@ export function tituloDe(entidade: EntidadeEsquema | undefined, r: Registro, ref
     return `${nome(r.origem_id)} → ${nome(r.destino_id)}`;
   }
   const t = entidade.colunaTitulo ? r[entidade.colunaTitulo] : null;
-  return t ? String(t) : `#${r.id}`;
+  if (t) return String(t);
+  // Sem coluna de título (ex.: drops): usa o registro referenciado pelo primeiro campo de referência.
+  const ref = entidade.campos.find((c) => c.tipo === 'REFERENCIA' && r[c.coluna] != null);
+  const alvo = ref && refs[ref.referencia ?? '']?.find((x) => String(x.id) === String(r[ref.coluna]));
+  return alvo ? String(alvo.nome ?? `#${alvo.id}`) : `#${r.id}`;
 }
 
 export function opcoesDe(esquema: EntidadeEsquema[], refs: Referencias): Record<string, OpcaoReferencia[]> {

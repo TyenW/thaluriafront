@@ -20,6 +20,10 @@ export interface MapaEditorProps {
   /** Rota a pré-visualizar. */
   rota?: { a: Ponto; b: Ponto; maritima: boolean } | null;
   destacar?: (string | number)[];
+  /** Cor de cada cidade (ex.: estágio da disseminação); as sem cor ficam no tom padrão. */
+  cores?: Record<string | number, string>;
+  /** Cidades clicáveis: o toque no ponto escolhe a cidade. */
+  onEscolherCidade?: (id: string | number) => void;
   altura?: number;
 }
 
@@ -36,7 +40,7 @@ export function tracadoDaRota(rota: MapaEditorProps['rota']): TracadoRota | null
   return rota ? tracarRota(rota.a, rota.b, rota.maritima ? 'agua' : 'terra') : null;
 }
 
-export const MapaEditor: React.FC<MapaEditorProps> = ({ cidades, marcador, onEscolher, rota, destacar = [], altura = 320 }) => {
+export const MapaEditor: React.FC<MapaEditorProps> = ({ cidades, marcador, onEscolher, rota, destacar = [], cores, onEscolherCidade, altura = 320 }) => {
   const atlas = useMemo(() => construirAtlas(), []);
   const svgRef = useRef<SVGSVGElement>(null);
   const tracado = useMemo(() => tracadoDaRota(rota), [rota]);
@@ -84,14 +88,20 @@ export const MapaEditor: React.FC<MapaEditorProps> = ({ cidades, marcador, onEsc
 
       {cidades.map((c) =>
         c.x == null || c.y == null ? null : (
-          <g key={c.id} pointerEvents="none">
+          <g
+            key={c.id}
+            pointerEvents={onEscolherCidade ? 'all' : 'none'}
+            onClick={onEscolherCidade ? () => onEscolherCidade(c.id) : undefined}
+            className={onEscolherCidade ? 'cursor-pointer' : undefined}
+          >
+            {onEscolherCidade && <title>{c.nome}</title>}
             <circle
               cx={c.x}
               cy={c.y}
-              r={destacar.includes(c.id) ? 9 : 5}
-              fill={destacar.includes(c.id) ? '#d4af37' : c.temPorto ? '#1f4f6b' : '#3a2a1a'}
-              stroke="#f3e7c3"
-              strokeWidth={2}
+              r={destacar.includes(c.id) ? 11 : cores ? 8 : 5}
+              fill={cores?.[c.id] ?? (destacar.includes(c.id) ? '#d4af37' : c.temPorto ? '#1f4f6b' : '#3a2a1a')}
+              stroke={destacar.includes(c.id) ? '#3a2a1a' : '#f3e7c3'}
+              strokeWidth={destacar.includes(c.id) ? 4 : 2}
             />
             {destacar.includes(c.id) && (
               <text x={c.x + 12} y={c.y + 6} fontSize={26} fill="#3a2a1a" fontFamily="Georgia, serif" fontWeight="bold">

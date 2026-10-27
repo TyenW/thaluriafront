@@ -12,6 +12,9 @@ import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { ModalConfirmacao } from '../../components/common/ModalConfirmacao';
 import { PainelAvisos, useAvisos } from '../../components/common/Avisos';
+import { PainelOrigemItens } from '../../components/admin/PainelOrigemItens';
+import type { AuditoriaOrigens } from '../../types/catalogo';
+import type { ValorRegistro } from '../../services/adminService';
 
 /** Aviso extra na confirmação de exclusão, para entidades que levam registros junto. */
 const EFEITO_EXCLUSAO: Record<string, string> = {
@@ -31,6 +34,8 @@ export const GerenciarMundoPage: React.FC = () => {
   const [editando, setEditando] = useState<Registro | null | 'novo'>(null);
   const [paraExcluir, setParaExcluir] = useState<Registro | null>(null);
   const [excluindo, setExcluindo] = useState(false);
+  const [preenchido, setPreenchido] = useState<Record<string, ValorRegistro> | undefined>(undefined);
+  const [origens, setOrigens] = useState<AuditoriaOrigens | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const { avisos, avisar, fechar } = useAvisos();
 
@@ -69,15 +74,45 @@ export const GerenciarMundoPage: React.FC = () => {
     }
   }, [entidade, avisar]);
 
+  const ehItens = entidade?.id === 'itens';
+  const carregarOrigens = useCallback(async () => {
+    if (!ehItens) return;
+    try {
+      setOrigens(await adminService.origensDosItens());
+    } catch {
+      // Servidor antigo sem a auditoria: o painel só não aparece
+      setOrigens(null);
+    }
+  }, [ehItens]);
+
   useEffect(() => {
     setBusca('');
     carregarLista();
   }, [carregarLista]);
 
+  useEffect(() => {
+    carregarOrigens();
+  }, [carregarOrigens]);
+
   const aoSalvar = async () => {
     await carregarLista();
     await carregarReferencias(esquema);
+    await carregarOrigens();
   };
+
+  /** Abre um registro novo de outra entidade já preenchido (atalhos do painel de origem). */
+  const novoEm = (entidadeId: string, valores?: Record<string, ValorRegistro>) => {
+    setSearchParams({ entidade: entidadeId }, { replace: true });
+    setPreenchido(valores);
+    setEditando('novo');
+  };
+  const editarItem = (itemId: number) => {
+    const r = registros.find((x) => Number(x.id) === itemId);
+    if (!r) return;
+    setPreenchido({ coletavel: true });
+    setEditando(r);
+  };
+  const semOrigem = new Set(origens?.itens.filter((i) => i.origens.length === 0).map((i) => String(i.id)) ?? []);
 
   const excluir = async () => {
     if (!paraExcluir || !entidade) return;
@@ -148,11 +183,21 @@ export const GerenciarMundoPage: React.FC = () => {
                   <Button variant="outline" size="sm" icon={<RefreshCw className="w-3.5 h-3.5" />} onClick={aoSalvar} loading={carregandoLista}>
                     Atualizar
                   </Button>
-                  <Button id="btn-admin-novo" variant="gold" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setEditando('novo')}>
+                  <Button id="btn-admin-novo" variant="gold" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => novoEm(entidade.id)}>
                     Novo
                   </Button>
                 </div>
               </div>
+
+              {ehItens && (
+                <PainelOrigemItens
+                  auditoria={origens}
+                  onEditarItem={editarItem}
+                  onCriarReceita={(itemId) => novoEm('receitas', { item_resultado_id: itemId })}
+                  onIrParaMonstros={() => setSearchParams({ entidade: 'monstros' }, { replace: true })}
+                  onCriarItem={(nome) => novoEm('itens', { nome })}
+                />
+              )}
 
               <label className="relative block">
                 <span className="sr-only">Buscar</span>
@@ -176,7 +221,18 @@ export const GerenciarMundoPage: React.FC = () => {
               ) : filtrados.length === 0 ? (
                 <p className="text-center text-sm text-nevoa py-10">{registros.length === 0 ? 'Nenhum registro cadastrado ainda.' : `Nada encontrado para “${busca}”.`}</p>
               ) : (
-                <TabelaRegistros entidade={entidade} esquema={esquema} registros={filtrados} refs={refs} onEditar={setEditando} onExcluir={setParaExcluir} />
+                <TabelaRegistros
+                  entidade={entidade}
+                  esquema={esquema}
+                  registros={filtrados}
+                  refs={refs}
+                  onEditar={(r) => {
+                    setPreenchido(undefined);
+                    setEditando(r);
+                  }}
+                  onExcluir={setParaExcluir}
+                  selo={ehItens ? (r) => semOrigem.has(String(r.id)) && <Badge variant="danger">Sem origem</Badge> : undefined}
+                />
               )}
             </Card>
           </>
@@ -189,6 +245,7 @@ export const GerenciarMundoPage: React.FC = () => {
           entidade={entidade}
           esquema={esquema}
           registro={editando === 'novo' ? null : editando}
+          valoresIniciais={preenchido}
           refs={refs}
           onFechar={() => setEditando(null)}
           onSalvo={aoSalvar}

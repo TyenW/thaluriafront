@@ -151,4 +151,31 @@ Nome da seção do formulário. A Interface agrupa os campos seguidos de mesmo g
 
 ---
 
+## Capítulo VIII — Das Rotas do Comércio (`/api/mestre/comercio/*`)
+
+Só o Mestre as usa (403 para jogadores). As ações devolvem `{ status, detalhe }`, com o detalhe da loja já atualizado. Valores sempre em **latão**.
+
+| Rota | Parâmetros | Ofício |
+| :--- | :--- | :--- |
+| `GET /api/mestre/comercio/resumo` | — | Dia, totais e o resumo de cada loja (caixa, estoque, semana, alertas) |
+| `GET /api/mestre/comercio/loja` | `id` | Estoque com preços, receitas com a conta da IA, ordens e os últimos 80 movimentos |
+| `POST /api/mestre/comercio/produzir` | `lojaId`, `receitaId`, `lotes` (1–99), `insumosPorConta`, `imediato` | Abre uma ordem; recusa listando os insumos que faltam |
+| `POST /api/mestre/comercio/vender` | `lojaId`, `itemId`, `fichaId`, `quantidade`, `precoUnitarioLatao`, `cobrar` | Vende ou entrega ao personagem; recusa sem saldo |
+| `GET /api/mestre/comercio/caravanas` | — | Caravanas ativas: carga, lojas, caminho (nomes das cidades), trechos, trecho atual e fração percorrida, km, horas restantes e missão em aberto |
+| `POST /api/mestre/comercio/ajustar` | `lojaId`, `acao` = `CAIXA` (`valorLatao`), `NIVEL` (`nivel`), `ESTOQUE` (`itemId`, `delta`), `DEMANDA` (`itemId`, `demanda`) | Ajustes diretos |
+
+### § 1. Do avançar dos dias
+`POST /api/mestre/controle-mundo` com `acao=AVANCAR_DIA` aceita agora de 1 a 60 dias por chamada, e o dia do mercado segue o dia da campanha mesmo após reiniciar o Motor.
+
+### § 2. Das tabelas novas
+| Tabela / coluna | Uso |
+| :--- | :--- |
+| `loja_ordens_producao` | Lotes em produção (loja, receita, lotes, dias, origem) |
+| `caravanas_ativas` | Caravanas em viagem: lojas, carga, caminho, trecho e km atuais, situação e proteção |
+| `lojas.nivel` | Nível da loja |
+| `receitas.tipo_loja` | Especialidade que conhece a receita |
+| `livro_caixa_movimentacoes.saldo_apos_latao` | Caixa depois de cada movimento |
+
+---
+
 *Aqui finda o Livro VI.*

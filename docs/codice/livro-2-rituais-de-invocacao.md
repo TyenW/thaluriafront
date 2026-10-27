@@ -54,6 +54,8 @@ A cada acendimento, `BancoDados.inicializarEsquema()` cria as tabelas que faltar
 
 Também nasce a tabela `sessoes_login`, e as senhas em texto puro são trocadas por hash. O terminal avisa: *"N senha(s) em texto puro convertida(s) para hash PBKDF2"*.
 
+Na primeira vez, o comércio é povoado: lojas-base em todas as cidades, receitas e itens de ofício (Livro IV, Capítulo IX, § 5).
+
 Nada é apagado; fichas e itens antigos seguem intactos. Quem estava logado precisa **entrar de novo** uma vez.
 
 ---
@@ -114,7 +116,17 @@ Troque a senha do Mestre em **Mestre → Jogadores** antes de expor o reino à i
 3. Abra **Painel**, escolha uma ficha e clique no ícone de presente (🎁). Conceda um item.
 4. Entre como **jogador1** em outra janela anônima, abra a ficha e veja o item na aba **Inventário**.
 
-### § 2. Se algo falhar
+### § 2. Da prova do comércio
+
+Na pasta `thaluriaback`, dê dois cliques em **`testar_comercio.bat`** (ou rode-o no terminal). São 85 provas em nove partes: clientela, reposição, IA dos mercadores, ordens do Mestre, encomendas e caravanas, lojas-base, persistência, 60 dias de estabilidade do mundo e a API da aba Comércio. O teste usa um banco próprio, apagado ao fim: **o `thaluria.db` da campanha não é tocado**. O resultado esperado é:
+
+```text
+RESULTADO FINAL: 85/85 TESTES DO COMERCIO PASSARAM.
+```
+
+Os quadros de "erro" que aparecem no meio são o Motor registrando as recusas que o teste provoca de propósito (login ausente, jogador na aba do Mestre, venda sem saldo).
+
+### § 3. Se algo falhar
 
 Consulte o [Apêndice — Remédios](apendice-glossario-e-remedios.md#capítulo-ii--dos-remédios-para-males-comuns).
 

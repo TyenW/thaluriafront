@@ -9,6 +9,7 @@ import {
   Minus,
   Navigation,
   Plus,
+  Truck,
 } from 'lucide-react';
 import {
   ALTURA_MAPA,
@@ -48,6 +49,9 @@ import {
 } from './estiloMapa';
 import { BarraEscala, CamadaBase, GlifoCidade, RosaDosVentos, Titulo } from './ornamentosMapa';
 import { BotaoMapa, FichaCidade, Legenda } from './interfaceMapa';
+import { CamadaCaravanas, FichaCaravana } from './camadaCaravanas';
+import { posicionarCaravanas } from './posicaoCaravanas';
+import type { CaravanaMapa } from '../../types/comercio';
 
 export interface MapaThaluriaProps {
   cidades: CidadeVisivel[];
@@ -61,6 +65,8 @@ export interface MapaThaluriaProps {
   cidadeAtual?: string;
   /** Notifica componente pai quando o modo de pré-visualização mudar. */
   onTogglePreviewJogador?: (ativo: boolean) => void;
+  /** Caravanas em viagem (só o Mestre recebe); desenhadas sobre as rotas. */
+  caravanas?: CaravanaMapa[];
 }
 
 // ---------------------------------------------------------------------------
@@ -75,6 +81,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
   onAlterarVisibilidade,
   cidadeAtual,
   onTogglePreviewJogador,
+  caravanas,
 }) => {
   const idBase = useId().replace(/[^a-zA-Z0-9]/g, '');
   const atlas = useMemo(() => construirAtlas(), []);
@@ -91,6 +98,8 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
   const [sobrepor, setSobrepor] = useState<Record<string, NivelVisibilidade>>({});
   const [menuReinosAberto, setMenuReinosAberto] = useState(false);
   const [rotaHover, setRotaHover] = useState<RotaHoverInfo | null>(null);
+  const [mostrarCaravanas, setMostrarCaravanas] = useState(true);
+  const [caravanaSel, setCaravanaSel] = useState<{ id: number; left: number; top: number } | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const vistaRef = useRef(vista);
@@ -182,6 +191,15 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
       return { atlas: atlasCidade, api, vis };
     });
   }, [cidades, cidadesBase, demonstracao, ehVisaoMestre, sobrepor]);
+
+  const caravanasNoMapa = useMemo(() => {
+    if (!caravanas?.length) return [];
+    const porNome = new Map(cidadesBase.map((c) => [normalizar(c.nome), c]));
+    return posicionarCaravanas(caravanas, (nome) => {
+      const c = porNome.get(normalizar(nome));
+      return c ? { x: c.x, y: c.y } : null;
+    });
+  }, [caravanas, cidadesBase]);
 
   const resolvidaPorNome = useMemo(() => new Map(cidadesResolvidas.map((c) => [c.atlas.nome, c])), [cidadesResolvidas]);
 
@@ -950,6 +968,20 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                 );
               })}
             </g>
+            {/* Caravanas em viagem (visão do Mestre) */}
+            {mestre && !previewJogador && mostrarCaravanas && caravanasNoMapa.length > 0 && (
+              <CamadaCaravanas
+                posicionadas={caravanasNoMapa}
+                escala={escalaTexto}
+                selecionadaId={caravanaSel?.id ?? null}
+                onSelecionar={(id, e) => {
+                  if (movido.current) return;
+                  const rect = containerRef.current?.getBoundingClientRect();
+                  if (!rect) return;
+                  setCaravanaSel((atual) => (atual?.id === id ? null : { id, left: e.clientX - rect.left, top: e.clientY - rect.top - 16 }));
+                }}
+              />
+            )}
           </svg>
         </div>
 
@@ -973,6 +1005,21 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
             </button>
           </div>
         )}
+
+        {/* Cartão da caravana selecionada */}
+        {caravanaSel && mostrarCaravanas && (() => {
+          const c = caravanas?.find((x) => x.id === caravanaSel.id);
+          if (!c) return null;
+          const largura = containerRef.current?.clientWidth ?? 600;
+          return (
+            <FichaCaravana
+              caravana={c}
+              left={limitar(caravanaSel.left, 150, largura - 150)}
+              top={Math.max(250, caravanaSel.top)}
+              onFechar={() => setCaravanaSel(null)}
+            />
+          );
+        })()}
 
         {/* Tooltip interativo flutuante da rota em hover */}
         {rotaHover && (
@@ -1089,6 +1136,23 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
               </div>
             )}
           </div>
+
+          {/* Caravanas em viagem */}
+          {mestre && caravanas && (
+            <BotaoMapa
+              rotulo={mostrarCaravanas ? 'Esconder caravanas' : 'Mostrar caravanas'}
+              onClick={() => {
+                setMostrarCaravanas((v) => !v);
+                setCaravanaSel(null);
+              }}
+              ativo={mostrarCaravanas}
+            >
+              <div className="flex items-center gap-1 font-cinzel text-[11px]">
+                <Truck className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Caravanas ({caravanas.length})</span>
+              </div>
+            </BotaoMapa>
+          )}
 
           {/* Alternador Mestre / Jogador */}
           {mestre && (

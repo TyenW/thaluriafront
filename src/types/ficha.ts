@@ -136,4 +136,5 @@ export interface SessaoCriacaoAtiva {
   racaEscolhida: string;
   dicaMestre?: string;
   aprovada: boolean;
+  rerollsDisponiveis?: number;
 }

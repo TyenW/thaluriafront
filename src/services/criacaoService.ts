@@ -16,6 +16,10 @@ export interface SessaoCriacao {
   atributosRolados: Record<string, number>;
   rerolagensPermitidas: number;
   rerolagensRestantes: number;
+  dicaMestre?: string;
+  aprovadaPeloMestre?: boolean;
+  impulsoDraconicoLiberado?: boolean;
+  linhagemDraconica?: string;
 }
 
 export interface RespostaFinalizarCriacao {
@@ -40,6 +44,22 @@ export const criacaoService = {
     return requestApi<SessaoCriacao>('/api/criacao/iniciar', {
       method: 'POST',
       body: { usuarioId, username, nomePersonagem },
+    });
+  },
+
+  /** Descarta o rascunho atual e permite recomeçar a criação do zero. */
+  async reiniciar(usuarioId: number): Promise<{ status: string }> {
+    return requestApi<{ status: string }>('/api/criacao/reiniciar', {
+      method: 'POST',
+      body: { usuarioId },
+    });
+  },
+
+  /** Atualiza o nome do herói no rascunho persistido. */
+  async atualizarNome(usuarioId: number, nomePersonagem: string): Promise<SessaoCriacao> {
+    return requestApi<SessaoCriacao>('/api/criacao/atualizar-nome', {
+      method: 'POST',
+      body: { usuarioId, nomePersonagem },
     });
   },
 

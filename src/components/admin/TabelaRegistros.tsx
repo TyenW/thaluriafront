@@ -11,10 +11,12 @@ export interface TabelaRegistrosProps {
   refs: Referencias;
   onEditar: (r: Registro) => void;
   onExcluir: (r: Registro) => void;
+  /** Selo extra ao lado do título (ex.: "Sem origem" nos itens). */
+  selo?: (r: Registro) => React.ReactNode;
 }
 
 /** Lista de registros: tabela no desktop, cartões empilhados no celular. */
-export const TabelaRegistros: React.FC<TabelaRegistrosProps> = ({ entidade, esquema, registros, refs, onEditar, onExcluir }) => {
+export const TabelaRegistros: React.FC<TabelaRegistrosProps> = ({ entidade, esquema, registros, refs, onEditar, onExcluir, selo }) => {
   const colunas = entidade.campos.filter((c) => c.naLista);
   const imagem = colunaImagem(entidade);
   const ehRota = entidade.id === 'rotas';
@@ -40,7 +42,9 @@ export const TabelaRegistros: React.FC<TabelaRegistrosProps> = ({ entidade, esqu
           <li key={r.id} className="flex items-start gap-3 py-3">
             {imagem && <Miniatura imagem={r[imagem] as string | null} icone={entidade.id === 'monstros' ? <Skull /> : undefined} />}
             <button type="button" onClick={() => onEditar(r)} className="flex-1 min-w-0 text-left cursor-pointer">
-              <span className="block font-cinzel font-bold text-sm text-pergaminho break-words">{tituloDe(entidade, r, refs)}</span>
+              <span className="block font-cinzel font-bold text-sm text-pergaminho break-words">
+                {tituloDe(entidade, r, refs)} {selo?.(r)}
+              </span>
               <span className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-nevoa">
                 {detalhes.map((c) => (
                   <span key={c.coluna}>
@@ -81,6 +85,7 @@ export const TabelaRegistros: React.FC<TabelaRegistrosProps> = ({ entidade, esqu
                 {colunas.map((c, i) => (
                   <td key={c.coluna} className={`py-2 px-2 ${i === 0 && !ehRota ? 'font-cinzel font-bold text-pergaminho' : 'text-texto-2'}`}>
                     {formatarCelula(entidade, c.coluna, r[c.coluna], esquema, refs)}
+                    {i === 0 && !ehRota && selo && <span className="ml-1.5">{selo(r)}</span>}
                   </td>
                 ))}
                 <td className="py-1.5 px-2 text-right whitespace-nowrap">{acoes(r)}</td>

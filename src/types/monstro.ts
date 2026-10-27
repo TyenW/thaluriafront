@@ -11,6 +11,8 @@ export interface GolpePokemon {
 export interface MonstroBestiario {
   id: string;
   revelado: boolean;
+  /** Só na visão do Mestre: se os jogadores enxergam a criatura (para o Mestre, revelado é sempre true). */
+  reveladoJogador?: boolean;
   nome: string;
   regiao?: string;
   elemento?: string;

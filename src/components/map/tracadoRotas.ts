@@ -24,6 +24,8 @@ export interface TracadoRota {
   /** Não existe caminho pelo meio exigido (ex.: estrada até uma ilha). */
   impossivel: boolean;
   motivo?: string;
+  /** Pontos do caminho, de a até b (a curva desenhada passa perto deles). */
+  pontos: Ponto[];
 }
 
 interface Grade {
@@ -272,6 +274,7 @@ export function tracarRota(a: Ponto, b: Ponto, meio: MeioRota): TracadoRota {
     d: `M${a.x},${a.y}L${b.x},${b.y}`,
     comprimento: distancia(a, b),
     impossivel: true,
+    pontos: [a, b],
     motivo,
   });
 
@@ -293,7 +296,7 @@ export function tracarRota(a: Ponto, b: Ponto, meio: MeioRota): TracadoRota {
       const completo = [a, ...pontos, b];
       let comprimento = 0;
       for (let i = 1; i < completo.length; i++) comprimento += distancia(completo[i - 1], completo[i]);
-      resultado = { d: suavizarAberto(completo), comprimento, impossivel: false };
+      resultado = { d: suavizarAberto(completo), comprimento, impossivel: false, pontos: completo };
     }
   }
   cache.set(chave, resultado);
@@ -301,4 +304,24 @@ export function tracarRota(a: Ponto, b: Ponto, meio: MeioRota): TracadoRota {
 }
 
 /** Distância sugerida em km para uma rota, a partir do traçado. */
+/** Ponto a uma fração (0 a 1) do comprimento do traçado, e a direção nesse ponto (em graus). */
+export function pontoNoTracado(t: TracadoRota, fracao: number): { x: number; y: number; angulo: number } {
+  const pts = t.pontos;
+  if (pts.length < 2) return { x: pts[0]?.x ?? 0, y: pts[0]?.y ?? 0, angulo: 0 };
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) total += distancia(pts[i - 1], pts[i]);
+  let alvo = Math.min(1, Math.max(0, fracao)) * total;
+  for (let i = 1; i < pts.length; i++) {
+    const seg = distancia(pts[i - 1], pts[i]);
+    if (alvo <= seg || i === pts.length - 1) {
+      const u = seg > 0 ? Math.min(1, alvo / seg) : 0;
+      const a = pts[i - 1], b = pts[i];
+      return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, angulo: (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI };
+    }
+    alvo -= seg;
+  }
+  const ult = pts[pts.length - 1];
+  return { x: ult.x, y: ult.y, angulo: 0 };
+}
+
 export const distanciaKmSugerida = (t: TracadoRota) => Math.max(1, Math.round(t.comprimento * KM_POR_UNIDADE));

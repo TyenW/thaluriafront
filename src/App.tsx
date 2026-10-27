@@ -26,6 +26,9 @@ const SessoesAoVivoPage = sobDemanda(() => import('./pages/master/SessoesAoVivoP
 const ControleMundoPage = sobDemanda(() => import('./pages/master/ControleMundoPage'), 'ControleMundoPage');
 const GerenciarJogadoresPage = sobDemanda(() => import('./pages/master/GerenciarJogadoresPage'), 'GerenciarJogadoresPage');
 const GerenciarMundoPage = sobDemanda(() => import('./pages/master/GerenciarMundoPage'), 'GerenciarMundoPage');
+const ComercioPage = sobDemanda(() => import('./pages/master/ComercioPage'), 'ComercioPage');
+const ForjaPage = sobDemanda(() => import('./pages/master/ForjaPage'), 'ForjaPage');
+const DisseminacaoPage = sobDemanda(() => import('./pages/master/DisseminacaoPage'), 'DisseminacaoPage');
 
 export function App() {
   return (
@@ -54,6 +57,9 @@ export function App() {
               <Route path="sessoes" element={<SessoesAoVivoPage />} />
               <Route path="mundo" element={<ControleMundoPage />} />
               <Route path="jogadores" element={<GerenciarJogadoresPage />} />
+              <Route path="comercio" element={<ComercioPage />} />
+              <Route path="forja" element={<ForjaPage />} />
+              <Route path="disseminacao" element={<DisseminacaoPage />} />
               <Route path="gerenciar" element={<GerenciarMundoPage />} />
             </Route>
 

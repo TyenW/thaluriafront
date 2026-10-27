@@ -17,10 +17,21 @@ export function valoresPadrao(entidade: EntidadeEsquema): Record<string, ValorRe
   return v;
 }
 
+/**
+ * Campo dependente de outro: "e_rede" só aparece com o interruptor marcado;
+ * "tipo=MATERIAL" só quando o campo tipo tem esse valor.
+ */
+export const campoVisivel = (c: CampoEsquema, valores: Record<string, ValorRegistro>) => {
+  if (!c.visivelSe) return true;
+  const [coluna, valor] = c.visivelSe.split('=');
+  return valor === undefined ? valores[coluna] === true : String(valores[coluna] ?? '') === valor;
+};
+
 /** Mesmas regras do servidor, para avisar antes de enviar. */
 export function validarCampos(entidade: EntidadeEsquema, valores: Record<string, ValorRegistro>): Record<string, string> {
   const erros: Record<string, string> = {};
   for (const c of entidade.campos) {
+    if (!campoVisivel(c, valores)) continue;
     const v = valores[c.coluna];
     const vazio = v === null || v === undefined || String(v).trim() === '';
     if (vazio) {
@@ -170,7 +181,7 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
     }
   };
 
-  const grupos = agrupar(entidade.campos.filter((c) => !ocultar.includes(c.coluna)));
+  const grupos = agrupar(entidade.campos.filter((c) => !ocultar.includes(c.coluna) && campoVisivel(c, valores)));
 
   return (
     <div className="space-y-5">

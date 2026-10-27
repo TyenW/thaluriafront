@@ -6,12 +6,15 @@ import { MapaThaluria } from '../../components/map/MapaThaluria';
 import { useAuth } from '../../contexts/AuthContext';
 import { mundoService } from '../../services/mundoService';
 import { fichasService } from '../../services/fichasService';
+import { comercioService } from '../../services/comercioService';
+import type { CaravanaMapa } from '../../types/comercio';
 import type { CidadeVisivel, RotaConexao } from '../../types/monstro';
 
 export const MapaPage: React.FC = () => {
   const { usuario, isMestre } = useAuth();
   const [cidades, setCidades] = useState<CidadeVisivel[]>([]);
   const [rotas, setRotas] = useState<RotaConexao[]>([]);
+  const [caravanas, setCaravanas] = useState<CaravanaMapa[]>([]);
   const [cidadeAtual, setCidadeAtual] = useState<string | undefined>(undefined);
   const [nomePersonagem, setNomePersonagem] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -25,6 +28,9 @@ export const MapaPage: React.FC = () => {
       const data = await mundoService.obterConteudoVisivel(usuario?.papel ?? 'JOGADOR');
       setCidades(data.cidades ?? []);
       setRotas(data.rotas ?? []);
+
+      // Caravanas em viagem: só o Mestre vê (e o mapa continua se a rota falhar)
+      if (isMestre) setCaravanas(await comercioService.caravanas().catch(() => []));
 
       // Busca a cidade atual do personagem do jogador
       if (usuario?.id) {
@@ -44,7 +50,7 @@ export const MapaPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [usuario?.id, usuario?.papel]);
+  }, [usuario?.id, usuario?.papel, isMestre]);
 
   useEffect(() => {
     carregar();
@@ -103,6 +109,7 @@ export const MapaPage: React.FC = () => {
         cidades={cidades}
         rotas={rotas}
         modo={isMestre ? 'mestre' : 'jogador'}
+        caravanas={isMestre ? caravanas : undefined}
         demonstracao={isMestre && atlasCompleto}
         cidadeAtual={cidadeAtual}
         onAlterarVisibilidade={

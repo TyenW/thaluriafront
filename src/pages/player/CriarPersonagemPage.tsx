@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { criacaoService, type SessaoCriacao } from '../../services/criacaoService';
 import { ApiError } from '../../services/api';
 import { ModalConfirmacao } from '../../components/common/ModalConfirmacao';
+import { Modal } from '../../components/common/Modal';
 import { fichasService } from '../../services/fichasService';
 import type { RacaResumo } from '../../types/raca';
 import { LINHAGENS_DRACONICAS } from '../../types/raca';
@@ -23,7 +24,10 @@ import {
   AlertTriangle,
   Crown,
   User,
-  RotateCcw
+  RotateCcw,
+  MessageSquare,
+  Trash2,
+  Edit3
 } from 'lucide-react';
 
 const NOME_MAXIMO = 60;
@@ -41,6 +45,16 @@ export const CriarPersonagemPage: React.FC = () => {
   const [erro, setErro] = useState<string | null>(null);
   const [retomando, setRetomando] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
+
+  // Intervenção e Acompanhamento do Mestre ao Vivo
+  const [dicaMestre, setDicaMestre] = useState<string | undefined>(undefined);
+  const [aprovadaPeloMestre, setAprovadaPeloMestre] = useState(false);
+
+  // Modais de Controle
+  const [confirmarReiniciar, setConfirmarReiniciar] = useState(false);
+  const [modalRenomear, setModalRenomear] = useState(false);
+  const [novoNomeInput, setNovoNomeInput] = useState('');
+  const [salvandoNome, setSalvandoNome] = useState(false);
 
   // Etapa 2: Raças Sorteadas
   const [opcoesRacas, setOpcoesRacas] = useState<RacaResumo[]>([]);
@@ -61,21 +75,37 @@ export const CriarPersonagemPage: React.FC = () => {
   const racasJaSorteadas = opcoesRacas.length > 0;
   const jaRolou = indiceRolado >= 0;
 
+  // Refs para manter valores atualizados no polling sem recriar timers
+  const opcoesRacasRef = useRef<RacaResumo[]>(opcoesRacas);
+  useEffect(() => {
+    opcoesRacasRef.current = opcoesRacas;
+  }, [opcoesRacas]);
+
+  const etapaRef = useRef<1 | 2 | 3 | 4>(etapa);
+  useEffect(() => {
+    etapaRef.current = etapa;
+  }, [etapa]);
+
   const aplicarSessao = (s: SessaoCriacao) => {
     setOpcoesRacas(s.opcoesRacas || []);
     setNomeDoSorteio(s.nomePersonagem);
     setRerolagensRestantes(s.rerolagensRestantes ?? 0);
     setRerolagensPermitidas(s.rerolagensPermitidas ?? 2);
+    setDicaMestre(s.dicaMestre);
+    setAprovadaPeloMestre(!!s.aprovadaPeloMestre);
+    if (s.linhagemDraconica) setLinhagemDraconica(s.linhagemDraconica);
     const rolou = Object.keys(s.atributosRolados || {}).length > 0;
     setAtributosRolados(s.atributosRolados || {});
     if (rolou && s.indiceRacaEscolhida >= 0) {
       setIndiceRolado(s.indiceRacaEscolhida);
       setRacaSelecionadaIndex(s.indiceRacaEscolhida);
       setRacaEscolhidaNome(s.racaEscolhidaNome || s.opcoesRacas[s.indiceRacaEscolhida]?.nome || 'Humano');
+    } else if (!rolou) {
+      setIndiceRolado(-1);
     }
   };
 
-  // Retoma uma criação em andamento: recarregar a página não refaz o sorteio nem devolve rerolagens.
+  // Retoma uma criação em andamento ao carregar a página
   useEffect(() => {
     if (!usuario) return;
     let ativo = true;
@@ -87,10 +117,10 @@ export const CriarPersonagemPage: React.FC = () => {
         setNomePersonagem(s.nomePersonagem);
         const rolou = Object.keys(s.atributosRolados || {}).length > 0;
         setEtapa(rolou ? 3 : 2);
-        setAviso(`Criação de “${s.nomePersonagem}” retomada de onde você parou.`);
+        setAviso(`Criação de “${s.nomePersonagem}” retomada.`);
       })
       .catch(() => {
-        // Sem sessão retomável (ou servidor antigo): segue para o passo 1.
+        // Sem sessão retomável: segue para o passo 1.
       })
       .finally(() => ativo && setRetomando(false));
     return () => {
@@ -98,7 +128,56 @@ export const CriarPersonagemPage: React.FC = () => {
     };
   }, [usuario]);
 
-  // Passo 1 -> Passo 2: Iniciar Sorteio no Java
+  // Sincronização em Tempo Real com o Mestre (Polling suave a cada 2.5s)
+  useEffect(() => {
+    if (!usuario) return;
+    const interval = setInterval(async () => {
+      try {
+        const s = await criacaoService.obterSessao(usuario.id);
+        if (!s) {
+          // Se havia raças sorteadas e a sessão sumiu, o mestre resetou o rascunho
+          if (opcoesRacasRef.current.length > 0) {
+            setOpcoesRacas([]);
+            setAtributosRolados({});
+            setIndiceRolado(-1);
+            setDicaMestre(undefined);
+            setAprovadaPeloMestre(false);
+            setEtapa(1);
+            setAviso('O Mestre reiniciou a sua criação. Você pode recomeçar do zero!');
+          }
+          return;
+        }
+
+        // Atualiza dicas, aprovação e contadores de reroll
+        setDicaMestre(s.dicaMestre);
+        setAprovadaPeloMestre(!!s.aprovadaPeloMestre);
+        setRerolagensRestantes(s.rerolagensRestantes ?? 0);
+        setRerolagensPermitidas(s.rerolagensPermitidas ?? 2);
+        if (s.linhagemDraconica) setLinhagemDraconica(s.linhagemDraconica);
+
+        const nomesNovasRacas = (s.opcoesRacas || []).map((r) => r.nome).join(',');
+        const nomesRacasAtuais = opcoesRacasRef.current.map((r) => r.nome).join(',');
+
+        // Detecta se o Mestre executou um novo sorteio de raças (REROLL_RACA)
+        if (nomesRacasAtuais.length > 0 && nomesNovasRacas.length > 0 && nomesNovasRacas !== nomesRacasAtuais) {
+          setOpcoesRacas(s.opcoesRacas || []);
+          setNomeDoSorteio(s.nomePersonagem);
+          setNomePersonagem(s.nomePersonagem);
+          setAtributosRolados({});
+          setIndiceRolado(-1);
+          setRacaSelecionadaIndex(0);
+          setEtapa(2);
+          setAviso('🎲 O Mestre concedeu um novo sorteio de 3 raças para o seu herói!');
+        }
+      } catch {
+        // Ignora erros temporários de conexão durante o background polling
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [usuario]);
+
+  // Passo 1 -> Passo 2: Iniciar Sorteio no Java ou avançar persistindo nome
   const handleIniciarCriacao = async (e: React.FormEvent) => {
     e.preventDefault();
     const nome = nomePersonagem.trim();
@@ -114,10 +193,22 @@ export const CriarPersonagemPage: React.FC = () => {
       setErro('Sua sessão expirou. Entre novamente para criar um personagem.');
       return;
     }
-    // Voltar ao passo 1 não pode gerar um novo sorteio de raças.
+
+    // Se já havia raças sorteadas, apenas atualiza o nome no servidor e avança
     if (racasJaSorteadas) {
+      setLoading(true);
       setErro(null);
-      setEtapa(2);
+      try {
+        if (nome !== nomeDoSorteio) {
+          await criacaoService.atualizarNome(usuario.id, nome);
+          setNomeDoSorteio(nome);
+        }
+        setEtapa(2);
+      } catch (err: any) {
+        setErro(err.message || 'Falha ao atualizar nome do herói.');
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
@@ -132,6 +223,55 @@ export const CriarPersonagemPage: React.FC = () => {
       setErro(err.message || 'Falha ao iniciar sorteio de raças no servidor.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  /** Descarta o rascunho e reinicia a criação do zero */
+  const handleReiniciarCriacao = async () => {
+    if (!usuario) return;
+    setLoading(true);
+    setErro(null);
+    try {
+      await criacaoService.reiniciar(usuario.id);
+      setOpcoesRacas([]);
+      setAtributosRolados({});
+      setIndiceRolado(-1);
+      setRacaSelecionadaIndex(0);
+      setDicaMestre(undefined);
+      setAprovadaPeloMestre(false);
+      setNomePersonagem('');
+      setNomeDoSorteio('');
+      setConfirmarReiniciar(false);
+      setEtapa(1);
+      setAviso('Criação reiniciada do zero com sucesso.');
+    } catch (err: any) {
+      setErro(err.message || 'Falha ao reiniciar criação.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** Salva alteração de nome do herói a qualquer momento */
+  const handleSalvarNovoNome = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const nomeLimpo = novoNomeInput.trim();
+    if (!nomeLimpo) {
+      setErro('Informe um nome válido.');
+      return;
+    }
+    if (!usuario) return;
+    setSalvandoNome(true);
+    setErro(null);
+    try {
+      await criacaoService.atualizarNome(usuario.id, nomeLimpo);
+      setNomePersonagem(nomeLimpo);
+      setNomeDoSorteio(nomeLimpo);
+      setModalRenomear(false);
+      setAviso(`Nome do personagem alterado para “${nomeLimpo}”.`);
+    } catch (err: any) {
+      setErro(err.message || 'Falha ao atualizar nome.');
+    } finally {
+      setSalvandoNome(false);
     }
   };
 
@@ -228,11 +368,25 @@ export const CriarPersonagemPage: React.FC = () => {
           </p>
         </div>
 
-        <Link to="/">
-          <Button variant="outline" size="sm" icon={<ArrowLeft className="w-3.5 h-3.5" />}>
-            Voltar ao Grimório
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {racasJaSorteadas && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmarReiniciar(true)}
+              icon={<Trash2 className="w-3.5 h-3.5 text-red-400" />}
+              className="text-red-400 hover:text-red-300 hover:border-red-500/50 text-xs"
+              title="Descartar rascunho atual e começar de novo"
+            >
+              Recomeçar do Zero
+            </Button>
+          )}
+          <Link to="/">
+            <Button variant="outline" size="sm" icon={<ArrowLeft className="w-3.5 h-3.5" />}>
+              Voltar ao Grimório
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Barra de Progresso das 4 Etapas */}
@@ -265,13 +419,49 @@ export const CriarPersonagemPage: React.FC = () => {
         ))}
       </div>
 
-      {aviso && (
-        <div role="status" className="p-3 bg-emerald-950/40 border border-emerald-600/50 rounded-xl flex items-center gap-3 text-emerald-200 text-xs font-sans-clean">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{aviso}</span>
+      {/* Dica / Orientação do Mestre da Campanha */}
+      {dicaMestre && (
+        <div className="p-4 bg-gradient-to-r from-blue-950/60 via-purple-950/40 to-painel border border-blue-500/50 rounded-xl flex items-start justify-between gap-3 text-blue-200 shadow-[0_0_15px_rgba(59,130,246,0.15)] animate-fade-in">
+          <div className="flex items-start gap-3">
+            <MessageSquare className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-cinzel font-bold text-blue-300">
+                  Orientação do Mestre da Campanha
+                </span>
+                <span className="text-[10px] bg-blue-900/60 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">
+                  Ao Vivo
+                </span>
+              </div>
+              <p className="text-xs font-sans-clean mt-1 text-gray-200">
+                "{dicaMestre}"
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
+      {/* Aprovação do Mestre */}
+      {aprovadaPeloMestre && (
+        <div className="p-3.5 bg-emerald-950/50 border border-emerald-500/60 rounded-xl flex items-center gap-3 text-emerald-200 text-xs shadow-[0_0_12px_rgba(16,185,129,0.2)]">
+          <Crown className="w-5 h-5 text-amber-400 shrink-0" />
+          <span>
+            <strong>Ficha Aprovada pelo Mestre!</strong> O mestre da mesa acompanhou e validou esta criação em tempo real.
+          </span>
+        </div>
+      )}
+
+      {aviso && (
+        <div role="status" className="p-3 bg-emerald-950/40 border border-emerald-600/50 rounded-xl flex items-center justify-between gap-3 text-emerald-200 text-xs font-sans-clean">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{aviso}</span>
+          </div>
+          <button onClick={() => setAviso(null)} className="text-emerald-400 hover:text-emerald-200 font-bold px-1">✕</button>
+        </div>
+      )}
+
+      {/* Modal de Re-rolagem de Atributos ou Troca de Raça */}
       <ModalConfirmacao
         aberto={!!confirmarRerolagem}
         titulo={confirmarRerolagem === 'trocar-raca' ? 'Trocar de raça' : 'Re-rolar atributos'}
@@ -286,11 +476,57 @@ export const CriarPersonagemPage: React.FC = () => {
         Cada criação tem {rerolagensPermitidas} rerolagens e esta ação não pode ser desfeita.
       </ModalConfirmacao>
 
+      {/* Modal para Recomeçar do Zero */}
+      <ModalConfirmacao
+        aberto={confirmarReiniciar}
+        titulo="Recomeçar Criação do Zero?"
+        textoConfirmar="Sim, descartar e recomeçar"
+        perigoso
+        carregando={loading}
+        onConfirmar={handleReiniciarCriacao}
+        onCancelar={() => setConfirmarReiniciar(false)}
+      >
+        Tem certeza que deseja recomeçar? O rascunho de <strong>{nomePersonagem || 'seu personagem'}</strong> e todas as raças e atributos já sorteados serão descartados do servidor.
+      </ModalConfirmacao>
+
+      {/* Modal para Alterar Nome do Herói */}
+      <Modal
+        aberto={modalRenomear}
+        titulo="Alterar Nome do Personagem"
+        icone={<Edit3 className="w-5 h-5 text-amber-400" />}
+        onFechar={() => setModalRenomear(false)}
+        bloqueado={salvandoNome}
+        tamanho="sm"
+      >
+        <form onSubmit={handleSalvarNovoNome} className="space-y-4">
+          <Input
+            label="Novo Nome do Herói"
+            placeholder="Ex: Aldor Vento-Gélido..."
+            value={novoNomeInput}
+            onChange={(e) => setNovoNomeInput(e.target.value)}
+            maxLength={NOME_MAXIMO}
+            required
+            autoFocus
+          />
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button variant="ghost" size="sm" onClick={() => setModalRenomear(false)} disabled={salvandoNome}>
+              Cancelar
+            </Button>
+            <Button variant="gold" size="sm" type="submit" loading={salvandoNome}>
+              Salvar Nome
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Alerta de Erro */}
       {erro && (
-        <div className="p-4 bg-red-950/40 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-200 text-xs font-sans-clean">
-          <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
-          <span>{erro}</span>
+        <div className="p-4 bg-red-950/40 border border-red-500/50 rounded-xl flex items-center justify-between gap-3 text-red-200 text-xs font-sans-clean">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+            <span>{erro}</span>
+          </div>
+          <button onClick={() => setErro(null)} className="text-red-400 hover:text-red-200 font-bold px-1">✕</button>
         </div>
       )}
 
@@ -344,16 +580,30 @@ export const CriarPersonagemPage: React.FC = () => {
               <Badge variant="gold">Vaga 1 Humano Garantida</Badge>
             </div>
 
-            <Button
-              type="submit"
-              variant="gold"
-              size="lg"
-              loading={loading}
-              icon={<Dices className="w-5 h-5" />}
-              className="w-full justify-center text-sm font-bold uppercase tracking-wider"
-            >
-              {racasJaSorteadas ? 'Continuar com as raças sorteadas' : 'Invocar o Grande Sorteio das 3 Raças'}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                type="submit"
+                variant="gold"
+                size="lg"
+                loading={loading}
+                icon={<Dices className="w-5 h-5" />}
+                className="flex-1 justify-center text-sm font-bold uppercase tracking-wider"
+              >
+                {racasJaSorteadas ? 'Continuar com as raças sorteadas' : 'Invocar o Grande Sorteio das 3 Raças'}
+              </Button>
+              {racasJaSorteadas && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setConfirmarReiniciar(true)}
+                  icon={<Trash2 className="w-4 h-4 text-red-400" />}
+                  className="text-red-400 hover:text-red-300 hover:border-red-500/50 justify-center text-xs font-bold uppercase tracking-wider"
+                >
+                  Descartar e Sortear Novas Raças
+                </Button>
+              )}
+            </div>
           </form>
         </Card>
       )}
@@ -365,9 +615,21 @@ export const CriarPersonagemPage: React.FC = () => {
         <div className="space-y-6">
           <div className="p-4 bg-gradient-to-r from-amber-950/40 via-painel to-black/40 border border-amber-500/40 rounded-xl flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-cinzel font-bold text-pergaminho flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-400" />
+              <h2 className="text-lg font-cinzel font-bold text-pergaminho flex items-center gap-2 flex-wrap">
+                <Sparkles className="w-5 h-5 text-amber-400 shrink-0" />
                 <span>As 3 Raças Reveladas para {nomePersonagem}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNovoNomeInput(nomePersonagem);
+                    setModalRenomear(true);
+                  }}
+                  className="text-xs text-nevoa hover:text-amber-300 inline-flex items-center gap-1 border border-linha rounded px-2 py-0.5 bg-abismo"
+                  title="Alterar Nome do Herói"
+                >
+                  <Edit3 className="w-3 h-3 text-amber-400" />
+                  <span className="text-[10px] font-sans-clean">Renomear</span>
+                </button>
               </h2>
               <p className="text-xs text-nevoa font-sans-clean">
                 Escolha uma das 3 opções canônicas sorteadas diretamente pelo motor Java.
@@ -516,9 +778,24 @@ export const CriarPersonagemPage: React.FC = () => {
             </Button>
           </div>
           {jaRolou && racaSelecionadaIndex !== indiceRolado && (
-            <p className="text-[11px] text-amber-200 text-right">
-              Trocar de raça rola os atributos de novo e consome uma rerolagem ({rerolagensRestantes} restante(s)).
-            </p>
+            <div className="flex flex-col sm:flex-row items-end sm:items-center justify-between gap-2 pt-1">
+              <span className={`text-[11px] ${rerolagensRestantes > 0 ? 'text-amber-200' : 'text-red-300'}`}>
+                {rerolagensRestantes > 0
+                  ? `Trocar de raça rola os atributos de novo e consome uma rerolagem (${rerolagensRestantes} restante(s)).`
+                  : `Suas rerolagens acabaram (${rerolagensPermitidas}/${rerolagensPermitidas} usadas). Peça novas raças ao Mestre ou recomece a criação.`}
+              </span>
+              {rerolagensRestantes <= 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmarReiniciar(true)}
+                  icon={<Trash2 className="w-3.5 h-3.5 text-red-400" />}
+                  className="text-red-400 hover:text-red-300 hover:border-red-500/50 text-xs"
+                >
+                  Recomeçar do Zero
+                </Button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -536,8 +813,20 @@ export const CriarPersonagemPage: React.FC = () => {
                   Rolagem Oficial Executada no Servidor Java
                 </span>
               </div>
-              <h2 className="text-lg font-cinzel font-bold text-pergaminho">
-                Os 6 Atributos Canônicos de {nomePersonagem}
+              <h2 className="text-lg font-cinzel font-bold text-pergaminho flex items-center gap-2 flex-wrap">
+                <span>Os 6 Atributos Canônicos de {nomePersonagem}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNovoNomeInput(nomePersonagem);
+                    setModalRenomear(true);
+                  }}
+                  className="text-xs text-nevoa hover:text-amber-300 inline-flex items-center gap-1 border border-linha rounded px-2 py-0.5 bg-abismo"
+                  title="Alterar Nome do Herói"
+                >
+                  <Edit3 className="w-3 h-3 text-amber-400" />
+                  <span className="text-[10px] font-sans-clean">Renomear</span>
+                </button>
               </h2>
             </div>
 
@@ -660,9 +949,23 @@ export const CriarPersonagemPage: React.FC = () => {
               <span className="text-[10px] font-cinzel text-nevoa uppercase tracking-widest block">
                 Herói & Espécie
               </span>
-              <h3 className="text-2xl font-cinzel font-bold text-amber-300">
-                {nomePersonagem}
-              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-2xl font-cinzel font-bold text-amber-300">
+                  {nomePersonagem}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNovoNomeInput(nomePersonagem);
+                    setModalRenomear(true);
+                  }}
+                  className="text-xs text-nevoa hover:text-amber-300 inline-flex items-center gap-1 border border-linha rounded px-2 py-0.5 bg-abismo"
+                  title="Alterar Nome do Herói"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="text-[10px] font-sans-clean">Renomear</span>
+                </button>
+              </div>
               <div className="flex items-center gap-2">
                 <Badge variant="gold">{racaEscolhidaNome}</Badge>
                 <span className="text-xs font-cinzel text-gray-400">
