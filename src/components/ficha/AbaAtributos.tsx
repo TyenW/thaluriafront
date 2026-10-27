@@ -8,7 +8,8 @@ import { Badge } from '../common/Badge';
 export interface AbaAtributosProps {
   ficha: FichaPersonagem;
   derivados: DerivadosFicha;
-  onEditar: () => void;
+  /** Sem ele (visão do jogador), os atributos ficam só para leitura. */
+  onEditar?: () => void;
 }
 
 const PILARES = [
@@ -17,7 +18,7 @@ const PILARES = [
 ];
 
 export const AbaAtributos: React.FC<AbaAtributosProps> = ({ ficha, derivados, onEditar }) => {
-  const botaoEditar = (
+  const botaoEditar = onEditar && (
     <button
       type="button"
       onClick={onEditar}

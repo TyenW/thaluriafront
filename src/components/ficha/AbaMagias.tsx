@@ -74,9 +74,11 @@ export interface AbaMagiasProps {
   ficha: FichaPersonagem;
   onAtualizadas: (magias: MagiaFicha[]) => void;
   avisar: (tipo: 'sucesso' | 'erro', texto: string) => void;
+  /** Mestre: registrar, editar, remover e preparar magias. O jogador só consulta. */
+  podeGerenciar?: boolean;
 }
 
-export const AbaMagias: React.FC<AbaMagiasProps> = ({ ficha, onAtualizadas, avisar }) => {
+export const AbaMagias: React.FC<AbaMagiasProps> = ({ ficha, onAtualizadas, avisar, podeGerenciar = false }) => {
   const magias = ficha.magias ?? [];
   const [form, setForm] = useState<Form | null>(null);
   const [tentou, setTentou] = useState(false);
@@ -158,25 +160,29 @@ export const AbaMagias: React.FC<AbaMagiasProps> = ({ ficha, onAtualizadas, avis
             {preparadas} preparada(s). Mana disponível: <strong className="text-cyan-300">{ficha.manaAtual}/{ficha.manaMax}</strong>.
           </p>
         </div>
-        <Button
-          id="btn-nova-magia"
-          variant="gold"
-          size="sm"
-          icon={<Plus className="w-3.5 h-3.5" />}
-          onClick={() => {
-            setTentou(false);
-            setForm({ ...NOVA });
-          }}
-        >
-          Nova magia
-        </Button>
+        {podeGerenciar && (
+          <Button
+            id="btn-nova-magia"
+            variant="gold"
+            size="sm"
+            icon={<Plus className="w-3.5 h-3.5" />}
+            onClick={() => {
+              setTentou(false);
+              setForm({ ...NOVA });
+            }}
+          >
+            Nova magia
+          </Button>
+        )}
       </div>
 
       {magias.length === 0 ? (
         <div className="text-center py-12 px-6 rounded-xl border border-dashed border-linha-forte bg-abismo">
           <Sparkles className="w-10 h-10 text-cyan-500/40 mx-auto mb-2" />
           <p className="text-sm font-cinzel text-pergaminho">Nenhuma magia registrada</p>
-          <p className="text-[11px] text-nevoa font-sans-clean mt-1">Registre feitiços, rituais e técnicas especiais do personagem.</p>
+          <p className="text-[11px] text-nevoa font-sans-clean mt-1">
+            {podeGerenciar ? 'Registre feitiços, rituais e técnicas especiais do personagem.' : 'As magias ensinadas pelo Mestre aparecem aqui.'}
+          </p>
         </div>
       ) : (
         circulos.map((circ) => (
@@ -197,22 +203,24 @@ export const AbaMagias: React.FC<AbaMagiasProps> = ({ ficha, onAtualizadas, avis
                             {m.elemento && <Badge variant="cyan">{m.elemento}</Badge>}
                           </div>
                         </div>
-                        <div className="flex shrink-0">
-                          <button
-                            type="button"
-                            className="p-1.5 text-amber-400 rounded hover:bg-amber-400/10 cursor-pointer"
-                            aria-label={`Editar ${m.nome}`}
-                            onClick={() => {
-                              setTentou(false);
-                              setForm(paraForm(m));
-                            }}
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button type="button" className="p-1.5 text-red-400 rounded hover:bg-red-500/10 cursor-pointer" aria-label={`Remover ${m.nome}`} onClick={() => setParaRemover(m)}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        {podeGerenciar && (
+                          <div className="flex shrink-0">
+                            <button
+                              type="button"
+                              className="p-1.5 text-amber-400 rounded hover:bg-amber-400/10 cursor-pointer"
+                              aria-label={`Editar ${m.nome}`}
+                              onClick={() => {
+                                setTentou(false);
+                                setForm(paraForm(m));
+                              }}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button type="button" className="p-1.5 text-red-400 rounded hover:bg-red-500/10 cursor-pointer" aria-label={`Remover ${m.nome}`} onClick={() => setParaRemover(m)}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <dl className="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 text-[11px] font-sans-clean">
                         <div>
@@ -244,11 +252,18 @@ export const AbaMagias: React.FC<AbaMagiasProps> = ({ ficha, onAtualizadas, avis
                         </p>
                       )}
                       {m.descricao && <p className="text-xs text-nevoa font-sans-clean mt-2 whitespace-pre-line">{m.descricao}</p>}
-                      <label className="flex items-center gap-2 mt-3 text-[11px] text-texto-2 cursor-pointer select-none">
-                        <input type="checkbox" checked={m.preparada} disabled={alternando === m.id} onChange={() => alternarPreparada(m)} className="accent-cyan-500" />
-                        Preparada
-                        {semMana && <span className="text-red-300">· mana insuficiente agora</span>}
-                      </label>
+                      {podeGerenciar ? (
+                        <label className="flex items-center gap-2 mt-3 text-[11px] text-texto-2 cursor-pointer select-none">
+                          <input type="checkbox" checked={m.preparada} disabled={alternando === m.id} onChange={() => alternarPreparada(m)} className="accent-cyan-500" />
+                          Preparada
+                          {semMana && <span className="text-red-300">· mana insuficiente agora</span>}
+                        </label>
+                      ) : (
+                        <p className="flex items-center gap-2 mt-3 text-[11px] text-texto-2">
+                          {m.preparada ? 'Preparada' : 'Não preparada'}
+                          {semMana && <span className="text-red-300">· mana insuficiente agora</span>}
+                        </p>
+                      )}
                     </li>
                   );
                 })}

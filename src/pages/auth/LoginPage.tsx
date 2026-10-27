@@ -4,8 +4,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
-import { Sparkles, KeyRound, User, AlertCircle, Wifi, Check, X } from 'lucide-react';
+import { KeyRound, User, AlertCircle, Wifi, Check, X } from 'lucide-react';
 import { obterApiBaseUrl, definirApiBaseUrl } from '../../services/api';
+import { LogoThaluria } from '../../components/layout/LogoThaluria';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -53,15 +54,10 @@ export const LoginPage: React.FC = () => {
         
         {/* Brasão e Título */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 via-yellow-600 to-amber-950 p-[1.5px] mx-auto mb-4 shadow-[0_0_30px_rgba(212,175,55,0.3)]">
-            <div className="w-full h-full bg-painel rounded-2xl flex items-center justify-center">
-              <Sparkles className="w-8 h-8 text-amber-400 animate-pulse" />
-            </div>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-decorative font-bold gold-gradient-text tracking-wider leading-tight">
-            Thalúria RPG
+          <h1 className="flex justify-center">
+            <LogoThaluria className="h-24 sm:h-28" />
           </h1>
-          <p className="text-xs font-cinzel text-amber-500/70 tracking-[0.25em] uppercase mt-1">
+          <p className="text-xs font-cinzel text-amber-500/70 tracking-[0.25em] uppercase mt-3">
             Plataforma de Exploração & Combate
           </p>
         </div>

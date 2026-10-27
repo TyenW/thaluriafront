@@ -28,9 +28,11 @@ export interface CarteiraMoedasProps {
   moedas: MoedasFicha;
   /** Recebe a quantidade final das moedas alteradas e persiste no servidor. */
   onSalvar: (alteradas: Partial<MoedasFicha>) => Promise<boolean>;
+  /** Mestre: receber e ajustar quantidades. O jogador só gasta. */
+  podeGerenciar?: boolean;
 }
 
-export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar }) => {
+export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar, podeGerenciar = false }) => {
   const [mostrarZeradas, setMostrarZeradas] = useEstadoPersistido('carteira:mostrar-zeradas', false);
   const [salvando, setSalvando] = useState(false);
 
@@ -103,7 +105,9 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
       {/* Lançamento rápido */}
       {!editando && (
         <div className="p-4 rounded-xl bg-abismo border border-linha space-y-3">
-          <span className="text-xs font-cinzel font-bold text-amber-300 uppercase tracking-wider block">Receber ou gastar moedas</span>
+          <span className="text-xs font-cinzel font-bold text-amber-300 uppercase tracking-wider block">
+            {podeGerenciar ? 'Receber ou gastar moedas' : 'Gastar moedas'}
+          </span>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_8rem_auto] gap-2 items-start">
             <label className="block">
               <span className="sr-only">Tipo de moeda</span>
@@ -143,17 +147,19 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
               />
             </label>
             <div className="flex gap-2">
-              <Button
-                id="btn-receber-moeda"
-                variant="outline"
-                size="md"
-                className="flex-1 sm:flex-none text-emerald-200 border-emerald-600/50 hover:border-emerald-400 hover:bg-emerald-500/10"
-                icon={<Plus className="w-4 h-4" />}
-                onClick={() => lancar('receber')}
-                disabled={salvando}
-              >
-                Receber
-              </Button>
+              {podeGerenciar && (
+                <Button
+                  id="btn-receber-moeda"
+                  variant="outline"
+                  size="md"
+                  className="flex-1 sm:flex-none text-emerald-200 border-emerald-600/50 hover:border-emerald-400 hover:bg-emerald-500/10"
+                  icon={<Plus className="w-4 h-4" />}
+                  onClick={() => lancar('receber')}
+                  disabled={salvando}
+                >
+                  Receber
+                </Button>
+              )}
               <Button
                 id="btn-gastar-moeda"
                 variant="outline"
@@ -193,9 +199,11 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
                 />
                 Mostrar moedas zeradas
               </label>
-              <Button id="btn-ajustar-moedas" variant="outline" size="sm" icon={<Pencil className="w-3.5 h-3.5" />} onClick={abrirEdicao}>
-                Ajustar
-              </Button>
+              {podeGerenciar && (
+                <Button id="btn-ajustar-moedas" variant="outline" size="sm" icon={<Pencil className="w-3.5 h-3.5" />} onClick={abrirEdicao}>
+                  Ajustar
+                </Button>
+              )}
             </div>
           ) : (
             <span className="text-[11px] text-nevoa font-sans-clean">Defina a quantidade exata de cada moeda.</span>
@@ -206,7 +214,9 @@ export const CarteiraMoedas: React.FC<CarteiraMoedasProps> = ({ moedas, onSalvar
           <div className="text-center py-8 px-4 rounded-xl border border-dashed border-linha-forte bg-abismo">
             <Coins className="w-9 h-9 text-amber-500/40 mx-auto mb-2" />
             <p className="text-sm font-cinzel text-pergaminho">Bolsa vazia</p>
-            <p className="text-[11px] text-nevoa font-sans-clean mt-1">Use “Receber” acima para registrar moedas obtidas.</p>
+            <p className="text-[11px] text-nevoa font-sans-clean mt-1">
+              {podeGerenciar ? 'Use “Receber” acima para registrar moedas obtidas.' : 'As moedas entregues pelo Mestre aparecem aqui.'}
+            </p>
           </div>
         ) : (
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">

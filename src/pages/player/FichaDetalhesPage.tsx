@@ -288,9 +288,11 @@ export const FichaDetalhesPage: React.FC = () => {
         </nav>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button id="btn-editar-ficha" variant="gold" size="sm" icon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setModalEdicao(true)}>
-            Editar ficha
-          </Button>
+          {isMestre && (
+            <Button id="btn-editar-ficha" variant="gold" size="sm" icon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setModalEdicao(true)}>
+              Editar ficha
+            </Button>
+          )}
           <Button
             id="btn-sincronizar"
             variant="outline"
@@ -302,16 +304,18 @@ export const FichaDetalhesPage: React.FC = () => {
           >
             Sincronizar
           </Button>
-          <Button
-            id="btn-excluir-ficha"
-            variant="ghost"
-            size="sm"
-            icon={<Trash2 className="w-3.5 h-3.5" />}
-            onClick={() => setConfirmarExcluir(true)}
-            className="text-red-300 hover:text-red-200 hover:bg-red-500/10"
-          >
-            Excluir
-          </Button>
+          {isMestre && (
+            <Button
+              id="btn-excluir-ficha"
+              variant="ghost"
+              size="sm"
+              icon={<Trash2 className="w-3.5 h-3.5" />}
+              onClick={() => setConfirmarExcluir(true)}
+              className="text-red-300 hover:text-red-200 hover:bg-red-500/10"
+            >
+              Excluir
+            </Button>
+          )}
         </div>
       </div>
 
@@ -402,17 +406,19 @@ export const FichaDetalhesPage: React.FC = () => {
       <section aria-label="Recursos vitais" className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="font-cinzel text-xs font-bold text-amber-300 uppercase tracking-widest">Recursos em jogo</h2>
-          <Button
-            id="btn-curar-tudo"
-            variant="ghost"
-            size="sm"
-            icon={<RotateCcw className="w-3.5 h-3.5" />}
-            onClick={() => setConfirmarRestaurar(true)}
-            disabled={tudoCheio}
-            title={tudoCheio ? 'Todos os recursos já estão no máximo' : 'Restaurar todos os recursos ao máximo'}
-          >
-            Restaurar tudo
-          </Button>
+          {isMestre && (
+            <Button
+              id="btn-curar-tudo"
+              variant="ghost"
+              size="sm"
+              icon={<RotateCcw className="w-3.5 h-3.5" />}
+              onClick={() => setConfirmarRestaurar(true)}
+              disabled={tudoCheio}
+              title={tudoCheio ? 'Todos os recursos já estão no máximo' : 'Restaurar todos os recursos ao máximo'}
+            >
+              Restaurar tudo
+            </Button>
+          )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <BarraRecurso
@@ -488,9 +494,14 @@ export const FichaDetalhesPage: React.FC = () => {
         />
 
         <div id={`aba-painel-${abaAtiva}`} role="tabpanel" aria-labelledby={`aba-${abaAtiva}`}>
-          {abaAtiva === 'atributos' && <AbaAtributos ficha={ficha} derivados={derivados} onEditar={() => setModalEdicao(true)} />}
+          {abaAtiva === 'atributos' && <AbaAtributos ficha={ficha} derivados={derivados} onEditar={isMestre ? () => setModalEdicao(true) : undefined} />}
           {abaAtiva === 'pericias' && (
-            <AbaPericias ficha={ficha} avisar={avisar} onPericiasAtualizadas={(pericias) => setFicha((f) => (f ? { ...f, pericias } : f))} />
+            <AbaPericias
+              ficha={ficha}
+              podeGerenciar={isMestre}
+              avisar={avisar}
+              onPericiasAtualizadas={(pericias) => setFicha((f) => (f ? { ...f, pericias } : f))}
+            />
           )}
           {abaAtiva === 'inventario' && (
             <AbaInventario
@@ -502,23 +513,23 @@ export const FichaDetalhesPage: React.FC = () => {
               onInventarioAtualizado={(inventario) => setFicha((f) => (f ? { ...f, inventario } : f))}
             />
           )}
-          {abaAtiva === 'moedas' && <CarteiraMoedas moedas={moedas} onSalvar={salvarMoedas} />}
-          {abaAtiva === 'progressao' && <AbaProgressao ficha={ficha} derivados={derivados} onSalvarPE={salvarPE} />}
+          {abaAtiva === 'moedas' && <CarteiraMoedas moedas={moedas} onSalvar={salvarMoedas} podeGerenciar={isMestre} />}
+          {abaAtiva === 'progressao' && <AbaProgressao ficha={ficha} derivados={derivados} onSalvarPE={isMestre ? salvarPE : undefined} />}
           {abaAtiva === 'companheiros' && <AbaCompanheiros ficha={ficha} />}
           {abaAtiva === 'raca' && <AbaRaca ficha={ficha} />}
           {abaAtiva === 'historia' && (
             <AbaHistoria ficha={ficha} avisar={avisar} onSalvo={(historia) => setFicha((f) => (f ? { ...f, historia } : f))} />
           )}
           {abaAtiva === 'condicoes' && (
-            <AbaCondicoes ficha={ficha} avisar={avisar} onAtualizadas={(condicoes) => setFicha((f) => (f ? { ...f, condicoes } : f))} />
+            <AbaCondicoes ficha={ficha} podeGerenciar={isMestre} avisar={avisar} onAtualizadas={(condicoes) => setFicha((f) => (f ? { ...f, condicoes } : f))} />
           )}
           {abaAtiva === 'magias' && (
-            <AbaMagias ficha={ficha} avisar={avisar} onAtualizadas={(magias) => setFicha((f) => (f ? { ...f, magias } : f))} />
+            <AbaMagias ficha={ficha} podeGerenciar={isMestre} avisar={avisar} onAtualizadas={(magias) => setFicha((f) => (f ? { ...f, magias } : f))} />
           )}
         </div>
       </section>
 
-      <ModalEditarFicha aberto={modalEdicao} ficha={ficha} onFechar={() => setModalEdicao(false)} onSalvo={aplicarResposta} avisar={avisar} />
+      <ModalEditarFicha aberto={isMestre && modalEdicao} ficha={ficha} onFechar={() => setModalEdicao(false)} onSalvo={aplicarResposta} avisar={avisar} />
 
       <ModalRetrato
         aberto={modalFoto}

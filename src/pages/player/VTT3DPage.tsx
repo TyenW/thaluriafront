@@ -7,13 +7,13 @@ export const VTT3DPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 text-left">
       <div className="border-b border-linha pb-6 flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
             <Badge variant="purple">Experimental</Badge>
             <Badge variant="gold">Planejamento Arquitetural</Badge>
           </div>
-          <h1 className="text-3xl font-cinzel font-bold text-pergaminho flex items-center gap-3">
-            <Box className="w-8 h-8 text-purple-400" />
+          <h1 className="text-2xl sm:text-3xl font-cinzel font-bold text-pergaminho flex items-center gap-3">
+            <Box className="w-7 h-7 sm:w-8 sm:h-8 text-purple-400 shrink-0" />
             <span>VTT 3D — Em Desenvolvimento</span>
           </h1>
           <p className="text-xs text-nevoa font-sans-clean mt-1">

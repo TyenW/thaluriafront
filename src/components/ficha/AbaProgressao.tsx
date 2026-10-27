@@ -10,7 +10,8 @@ const PE_MAX = 2_147_483_647;
 export interface AbaProgressaoProps {
   ficha: FichaPersonagem;
   derivados: DerivadosFicha;
-  onSalvarPE: (pe: number) => Promise<boolean>;
+  /** Sem ele (visão do jogador), os PE ficam só para leitura. */
+  onSalvarPE?: (pe: number) => Promise<boolean>;
 }
 
 export const AbaProgressao: React.FC<AbaProgressaoProps> = ({ ficha, derivados, onSalvarPE }) => {
@@ -26,7 +27,7 @@ export const AbaProgressao: React.FC<AbaProgressaoProps> = ({ ficha, derivados, 
   const erroPE = !/^\d+$/.test(pe.trim()) ? 'Use um número inteiro ≥ 0.' : Number(pe) > PE_MAX ? 'Valor acima do limite.' : null;
 
   const salvarPE = async () => {
-    if (erroPE || Number(pe) === peAtual) return;
+    if (!onSalvarPE || erroPE || Number(pe) === peAtual) return;
     setSalvando(true);
     const ok = await onSalvarPE(Number(pe));
     setSalvando(false);
@@ -92,9 +93,11 @@ export const AbaProgressao: React.FC<AbaProgressaoProps> = ({ ficha, derivados, 
           ) : (
             <>
               <strong className="text-3xl font-cinzel font-black text-purple-200 tabular-nums">{peAtual.toLocaleString('pt-BR')} PE</strong>
-              <Button id="btn-editar-pe" variant="outline" size="sm" icon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setEditandoPE(true)}>
-                Ajustar PE
-              </Button>
+              {onSalvarPE && (
+                <Button id="btn-editar-pe" variant="outline" size="sm" icon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setEditandoPE(true)}>
+                  Ajustar PE
+                </Button>
+              )}
             </>
           )}
         </div>

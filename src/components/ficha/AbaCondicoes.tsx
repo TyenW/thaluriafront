@@ -45,9 +45,11 @@ export interface AbaCondicoesProps {
   ficha: FichaPersonagem;
   onAtualizadas: (condicoes: CondicaoFicha[]) => void;
   avisar: (tipo: 'sucesso' | 'erro', texto: string) => void;
+  /** Mestre: aplicar, editar, remover condições e avançar turnos. O jogador só consulta. */
+  podeGerenciar?: boolean;
 }
 
-export const AbaCondicoes: React.FC<AbaCondicoesProps> = ({ ficha, onAtualizadas, avisar }) => {
+export const AbaCondicoes: React.FC<AbaCondicoesProps> = ({ ficha, onAtualizadas, avisar, podeGerenciar = false }) => {
   const condicoes = ficha.condicoes ?? [];
   const [form, setForm] = useState<Form | null>(null);
   const [tentou, setTentou] = useState(false);
@@ -115,35 +117,38 @@ export const AbaCondicoes: React.FC<AbaCondicoesProps> = ({ ficha, onAtualizadas
             <Activity className="w-5 h-5 text-amber-400" /> Condições ativas ({condicoes.length})
           </h3>
           <p className="text-xs text-nevoa font-sans-clean mt-1">
-            Efeitos temporários ou permanentes sobre o personagem. “Avançar turno” desconta 1 turno das condições com duração.
+            Efeitos temporários ou permanentes sobre o personagem.
+            {podeGerenciar && ' “Avançar turno” desconta 1 turno das condições com duração.'}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            id="btn-avancar-turno"
-            variant="outline"
-            size="sm"
-            icon={<SkipForward className="w-3.5 h-3.5" />}
-            onClick={avancarTurno}
-            loading={avancando}
-            disabled={!temporarias}
-            title={temporarias ? undefined : 'Nenhuma condição com duração em turnos'}
-          >
-            Avançar turno
-          </Button>
-          <Button
-            id="btn-nova-condicao"
-            variant="gold"
-            size="sm"
-            icon={<Plus className="w-3.5 h-3.5" />}
-            onClick={() => {
-              setTentou(false);
-              setForm({ ...NOVA });
-            }}
-          >
-            Aplicar condição
-          </Button>
-        </div>
+        {podeGerenciar && (
+          <div className="flex gap-2">
+            <Button
+              id="btn-avancar-turno"
+              variant="outline"
+              size="sm"
+              icon={<SkipForward className="w-3.5 h-3.5" />}
+              onClick={avancarTurno}
+              loading={avancando}
+              disabled={!temporarias}
+              title={temporarias ? undefined : 'Nenhuma condição com duração em turnos'}
+            >
+              Avançar turno
+            </Button>
+            <Button
+              id="btn-nova-condicao"
+              variant="gold"
+              size="sm"
+              icon={<Plus className="w-3.5 h-3.5" />}
+              onClick={() => {
+                setTentou(false);
+                setForm({ ...NOVA });
+              }}
+            >
+              Aplicar condição
+            </Button>
+          </div>
+        )}
       </div>
 
       {condicoes.length === 0 ? (
@@ -168,29 +173,31 @@ export const AbaCondicoes: React.FC<AbaCondicoesProps> = ({ ficha, onAtualizadas
                     </span>
                   </div>
                 </div>
-                <div className="flex shrink-0">
-                  <button
-                    type="button"
-                    className="p-1.5 rounded hover:bg-white/10 cursor-pointer"
-                    aria-label={`Editar ${c.nome}`}
-                    onClick={() => {
-                      setTentou(false);
-                      setForm({
-                        id: c.id,
-                        nome: c.nome,
-                        tipo: c.tipo,
-                        intensidade: String(c.intensidade),
-                        duracaoTurnos: c.duracaoTurnos == null ? '' : String(c.duracaoTurnos),
-                        descricao: c.descricao ?? '',
-                      });
-                    }}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button type="button" className="p-1.5 rounded hover:bg-white/10 cursor-pointer" aria-label={`Remover ${c.nome}`} onClick={() => setParaRemover(c)}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                {podeGerenciar && (
+                  <div className="flex shrink-0">
+                    <button
+                      type="button"
+                      className="p-1.5 rounded hover:bg-white/10 cursor-pointer"
+                      aria-label={`Editar ${c.nome}`}
+                      onClick={() => {
+                        setTentou(false);
+                        setForm({
+                          id: c.id,
+                          nome: c.nome,
+                          tipo: c.tipo,
+                          intensidade: String(c.intensidade),
+                          duracaoTurnos: c.duracaoTurnos == null ? '' : String(c.duracaoTurnos),
+                          descricao: c.descricao ?? '',
+                        });
+                      }}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button type="button" className="p-1.5 rounded hover:bg-white/10 cursor-pointer" aria-label={`Remover ${c.nome}`} onClick={() => setParaRemover(c)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
               {c.descricao && <p className="text-xs font-sans-clean mt-2 opacity-90 whitespace-pre-line">{c.descricao}</p>}
             </li>

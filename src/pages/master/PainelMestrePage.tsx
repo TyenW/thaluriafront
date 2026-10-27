@@ -196,15 +196,15 @@ export const PainelMestrePage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="relative">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 min-w-0 sm:flex-none">
               <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Buscar personagem ou raça..."
                 value={buscaFicha}
                 onChange={(e) => setBuscaFicha(e.target.value)}
-                className="bg-abismo text-xs text-pergaminho rounded-lg border border-linha-forte pl-8 pr-3 py-1.5 outline-none focus:border-amber-400 w-52 font-sans-clean"
+                className="bg-abismo text-xs text-pergaminho rounded-lg border border-linha-forte pl-8 pr-3 py-1.5 outline-none focus:border-amber-400 w-full sm:w-52 font-sans-clean"
               />
             </div>
 

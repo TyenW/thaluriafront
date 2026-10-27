@@ -25,7 +25,7 @@ import { resumirMoedas } from '../../data/moedas';
 
 export const PersonagensPage: React.FC = () => {
   const { avisos, avisar, fechar: fecharAviso } = useAvisos();
-  const { usuario } = useAuth();
+  const { usuario, isMestre } = useAuth();
   const [fichas, setFichas] = useState<FichaPersonagem[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -252,14 +252,16 @@ export const PersonagensPage: React.FC = () => {
                     <ArrowRight className="w-4 h-4 text-amber-400" />
                   </Button>
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => setFichaParaExcluir(ficha)}
-                  className="p-2 rounded bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 hover:border-red-500 text-red-400 hover:text-red-200 transition-all cursor-pointer"
-                  title={`Excluir ficha #${ficha.id} (${ficha.nome})`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {isMestre && (
+                  <button
+                    type="button"
+                    onClick={() => setFichaParaExcluir(ficha)}
+                    className="p-2 rounded bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 hover:border-red-500 text-red-400 hover:text-red-200 transition-all cursor-pointer"
+                    title={`Excluir ficha #${ficha.id} (${ficha.nome})`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </Card>
           ))}

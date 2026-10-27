@@ -57,9 +57,11 @@ export interface AbaPericiasProps {
   ficha: FichaPersonagem;
   onPericiasAtualizadas: (pericias: PericiaFicha[]) => void;
   avisar: (tipo: 'sucesso' | 'erro', texto: string) => void;
+  /** Mestre: criar, editar e remover perícias. O jogador só consulta. */
+  podeGerenciar?: boolean;
 }
 
-export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtualizadas, avisar }) => {
+export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtualizadas, avisar, podeGerenciar = false }) => {
   const pericias = listarPericias(ficha);
   const [filtro, setFiltro] = useState('');
   const [recolhidos, setRecolhidos] = useEstadoPersistido<string[]>('pericias:grupos-recolhidos', []);
@@ -163,18 +165,20 @@ export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtual
               <strong>Regra de mesa:</strong> Grau 0 = 2d20 (pior) + 0. Grau ≥ 1 = (Grau)d20 (melhor) + Maestria × 5.
             </p>
           </div>
-          <Button
-            id="btn-nova-pericia"
-            variant="gold"
-            size="sm"
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => {
-              setTentouSalvar(false);
-              setForm({ ...FORM_NOVA });
-            }}
-          >
-            Nova perícia
-          </Button>
+          {podeGerenciar && (
+            <Button
+              id="btn-nova-pericia"
+              variant="gold"
+              size="sm"
+              icon={<Plus className="w-4 h-4" />}
+              onClick={() => {
+                setTentouSalvar(false);
+                setForm({ ...FORM_NOVA });
+              }}
+            >
+              Nova perícia
+            </Button>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2">
@@ -242,28 +246,30 @@ export const AbaPericias: React.FC<AbaPericiasProps> = ({ ficha, onPericiasAtual
                         {dadoDePericia(p.grau ?? 0, p.maestria ?? 0)}
                       </span>
                     </div>
-                    <div className="flex items-center justify-end gap-1">
-                      {p.personalizada && (
-                        <button
-                          id={`btn-remover-pericia-${p.pericia}`}
-                          type="button"
-                          onClick={() => setParaRemover(p)}
-                          className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
-                          aria-label={`Excluir perícia ${p.nome}`}
+                    {podeGerenciar && (
+                      <div className="flex items-center justify-end gap-1">
+                        {p.personalizada && (
+                          <button
+                            id={`btn-remover-pericia-${p.pericia}`}
+                            type="button"
+                            onClick={() => setParaRemover(p)}
+                            className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
+                            aria-label={`Excluir perícia ${p.nome}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <Button
+                          id={`btn-editar-pericia-${p.pericia}`}
+                          variant="outline"
+                          size="sm"
+                          icon={<Pencil className="w-3 h-3 text-amber-400" />}
+                          onClick={() => abrirEdicao(p)}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <Button
-                        id={`btn-editar-pericia-${p.pericia}`}
-                        variant="outline"
-                        size="sm"
-                        icon={<Pencil className="w-3 h-3 text-amber-400" />}
-                        onClick={() => abrirEdicao(p)}
-                      >
-                        Editar
-                      </Button>
-                    </div>
+                          Editar
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </article>
               ))}

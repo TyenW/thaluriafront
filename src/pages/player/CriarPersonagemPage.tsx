@@ -5,7 +5,6 @@ import { criacaoService, type SessaoCriacao } from '../../services/criacaoServic
 import { ApiError } from '../../services/api';
 import { ModalConfirmacao } from '../../components/common/ModalConfirmacao';
 import { Modal } from '../../components/common/Modal';
-import { fichasService } from '../../services/fichasService';
 import type { RacaResumo } from '../../types/raca';
 import { LINHAGENS_DRACONICAS } from '../../types/raca';
 import { obterInfoRaca } from '../../data/racasData';
@@ -323,12 +322,14 @@ export const CriarPersonagemPage: React.FC = () => {
     setLoading(true);
     setErro(null);
     try {
+      // O nome vai para a sessão de criação antes de consagrar: depois disso, só o Mestre renomeia a ficha.
+      const nomeFinal = nomePersonagem.trim();
+      if (nomeFinal && nomeFinal !== nomeDoSorteio) {
+        await criacaoService.atualizarNome(usuario.id, nomeFinal);
+        setNomeDoSorteio(nomeFinal);
+      }
       const resp = await criacaoService.finalizar(usuario.id);
       if (resp && resp.id) {
-        const nomeFinal = nomePersonagem.trim();
-        if (nomeFinal && nomeFinal !== nomeDoSorteio) {
-          await fichasService.atualizarFicha({ id: resp.id, nome: nomeFinal });
-        }
         navigate(`/fichas/${resp.id}`);
       } else {
         navigate('/');

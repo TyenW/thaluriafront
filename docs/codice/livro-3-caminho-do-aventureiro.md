@@ -61,13 +61,17 @@ Mostra retrato, patamar, nível de ressonância, condições ativas, raça, rein
 | Energia | — |
 | Mana | Regeneração por turno |
 
-Os botões **−5, −1, +1, +5** gravam no servidor a cada toque. **Restaurar tudo** devolve as quatro ao máximo, após confirmação.
+Os botões **−5, −1, +1, +5** gravam no servidor a cada toque. **Restaurar tudo** (só o Mestre) devolve as quatro ao máximo, após confirmação.
 
 ### § 3. Das ações gerais
 
-- **Editar ficha** — nome e atributos.
 - **Sincronizar** — relê a ficha do servidor (útil quando o Mestre altera algo).
-- **Excluir** — apaga a ficha para sempre, com perícias, inventário, moedas e companheiros.
+- **Editar ficha** (só o Mestre) — nome, atributos e cidade.
+- **Excluir** (só o Mestre) — apaga a ficha para sempre, com perícias, inventário, moedas e companheiros.
+
+### § 4. Do que cabe ao jogador
+
+Na própria ficha, o jogador **troca o retrato**, **escreve a história**, **ajusta as quatro barras** e **gasta moedas**. Todo o resto — atributos, perícias, magias, condições, PE, inventário e moedas recebidas — é concedido pelo Mestre e aparece só para leitura. O servidor recusa qualquer outra alteração vinda de uma conta de jogador.
 
 ---
 
@@ -79,13 +83,13 @@ A aba aberta fica gravada no endereço (`?aba=inventario`), de modo que um link 
 Os seis atributos e o que deles deriva.
 
 ### § 2. Perícias
-Grau e maestria de cada perícia; perícias próprias podem ser criadas e removidas.
+Grau e maestria de cada perícia. O Mestre cria, ajusta e remove perícias.
 
 ### § 3. Magias
-Grimório pessoal: escola, elemento, círculo, custos de mana e energia, alcance, dado, tempo de conjuração e duração. Marque as **preparadas**.
+Grimório pessoal: escola, elemento, círculo, custos de mana e energia, alcance, dado, tempo de conjuração e duração. O Mestre registra as magias e marca as **preparadas**.
 
 ### § 4. Condições
-Efeitos positivos, negativos ou neutros, com intensidade de 1 a 10 e duração em turnos. **Avançar turno** desconta um turno de todas e encerra as que acabarem.
+Efeitos positivos, negativos ou neutros, com intensidade de 1 a 10 e duração em turnos. O Mestre as aplica; **Avançar turno** desconta um turno de todas e encerra as que acabarem.
 
 ### § 5. Inventário
 Cada item mostra ilustração (se houver), tipo, raridade em cor, descrição, quantidade, peso e preço de referência em latão. O topo soma a carga e avisa quando ela passa de **FOR × 5 kg**. Os itens chegam por **concessão do Mestre**, lojas e oficinas.
@@ -102,10 +106,10 @@ Cada item mostra ilustração (se houver), tipo, raridade em cor, descrição, q
 | Mítico | rosa |
 
 ### § 6. Moedas
-As dez moedas físicas do reino, da maior à menor: **Édito, Talento, Diamante, Cobalto, Platina, Ouro, Prata, Cobre, Ferro e Latão**. Cada uma é guardada como está, sem troco automático.
+As dez moedas físicas do reino, da maior à menor: **Édito, Talento, Diamante, Cobalto, Platina, Ouro, Prata, Cobre, Ferro e Latão**. Cada uma é guardada como está, sem troco automático. O jogador só **gasta**; receber e ajustar quantidades cabe ao Mestre.
 
 ### § 7. Progressão
-Pontos de Essência (PE) e avanço de patamar.
+Pontos de Essência (PE), definidos pelo Mestre, e avanço de patamar.
 
 ### § 8. História
 História, aparência, personalidade e anotações livres.
