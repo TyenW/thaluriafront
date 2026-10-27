@@ -31,6 +31,10 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
   const [tentou, setTentou] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erroServidor, setErroServidor] = useState<string | null>(null);
+  // Retrato do que está salvo, para avisar antes de fechar e perder alterações.
+  const [salvo, setSalvo] = useState(() => JSON.stringify(valores));
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false);
+  const sujo = JSON.stringify(valores) !== salvo || (!idAtual && chaveTexto.trim() !== '');
 
   const ehCidade = entidade.id === 'cidades';
   const ehRota = entidade.id === 'rotas';
@@ -42,6 +46,12 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
   const alterar = (coluna: string, v: ValorRegistro) => {
     setValores((atual) => ({ ...atual, [coluna]: v }));
     setErroServidor(null);
+    setConfirmandoSaida(false);
+  };
+
+  const pedirFechar = () => {
+    if (sujo && !confirmandoSaida) setConfirmandoSaida(true);
+    else onFechar();
   };
 
   // Cidades: posição no mapa
@@ -79,8 +89,10 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
       avisar('sucesso', `Registro salvo em ${entidade.rotulo}.`);
       onSalvo(novoId);
       // Registro novo com filhos (golpes, insumos...): continua aberto para cadastrá-los.
-      if (!idAtual && filhos.length > 0) setIdAtual(novoId);
-      else onFechar();
+      if (!idAtual && filhos.length > 0) {
+        setIdAtual(novoId);
+        setSalvo(JSON.stringify(valores));
+      } else onFechar();
     } catch (err: any) {
       setErroServidor(err.message || 'Não foi possível salvar.');
     } finally {
@@ -173,13 +185,32 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
         </p>
       )}
 
-      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-linha">
-        <Button variant="ghost" size="sm" onClick={onFechar} disabled={salvando}>
-          {idAtual && filhos.length > 0 ? 'Fechar' : 'Cancelar'}
-        </Button>
-        <Button id="btn-admin-salvar" variant="gold" size="sm" icon={<Save className="w-3.5 h-3.5" />} loading={salvando} onClick={salvar}>
-          {!idAtual && filhos.length > 0 ? `Salvar e cadastrar ${filhos.map((f) => f.rotulo.toLowerCase()).join(' e ')}` : 'Salvar'}
-        </Button>
+      {/* Rodapé fixo: salvar fica à mão mesmo no fim de formulários longos. -bottom-4 compensa o padding de quem rola (painel no celular, fundo no desktop). */}
+      <div className="sticky -bottom-4 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-painel/95 backdrop-blur border-t border-linha space-y-2">
+        {confirmandoSaida && (
+          <div role="alert" className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-lg border border-amber-600/50 bg-amber-950/40 text-xs text-amber-100">
+            <span className="flex items-center gap-1.5 flex-1">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" /> Há alterações não salvas.
+            </span>
+            <span className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setConfirmandoSaida(false)}>
+                Continuar editando
+              </Button>
+              <Button variant="outline" size="sm" className="text-red-200 border-red-700/60 hover:bg-red-950/40" onClick={onFechar}>
+                Descartar
+              </Button>
+            </span>
+          </div>
+        )}
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
+          {sujo && !confirmandoSaida && <span className="hidden sm:block mr-auto text-[11px] text-nevoa">Alterações não salvas</span>}
+          <Button variant="ghost" size="sm" onClick={pedirFechar} disabled={salvando}>
+            {idAtual && filhos.length > 0 && !sujo ? 'Fechar' : 'Cancelar'}
+          </Button>
+          <Button id="btn-admin-salvar" variant="gold" size="sm" icon={<Save className="w-3.5 h-3.5" />} loading={salvando} onClick={salvar}>
+            {!idAtual && filhos.length > 0 ? `Salvar e cadastrar ${filhos.map((f) => f.rotulo.toLowerCase()).join(' e ')}` : 'Salvar'}
+          </Button>
+        </div>
       </div>
 
       {idAtual && filhos.map((f) => <SubLista key={f.id} entidade={f} esquema={esquema} paiId={idAtual} refs={refs} avisar={avisar} />)}
@@ -191,7 +222,7 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
       aberto
       titulo={idAtual ? `Editar: ${tituloDe(entidade, { ...valores, id: idAtual } as Registro, refs)}` : `Novo registro — ${entidade.rotulo}`}
       icone={idAtual ? <Pencil className="w-5 h-5 text-amber-400" /> : <Plus className="w-5 h-5 text-amber-400" />}
-      onFechar={onFechar}
+      onFechar={pedirFechar}
       bloqueado={salvando}
       tamanho={ehMonstro ? 'xl' : 'lg'}
     >

@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export interface ModalProps {
@@ -13,7 +14,10 @@ export interface ModalProps {
   children: React.ReactNode;
 }
 
-/** Janela modal padrão: fecha com Esc ou no X, nunca ao clicar fora (evita perder formulários). */
+/**
+ * Janela modal padrão: fecha com Esc ou no X, nunca ao clicar fora (evita perder formulários).
+ * Vai num portal no body: dentro de um space-y-* a margem herdada encolhia a camada "fixed".
+ */
 export const Modal: React.FC<ModalProps> = ({
   aberto,
   titulo,
@@ -56,7 +60,7 @@ export const Modal: React.FC<ModalProps> = ({
   const largura = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-5xl' }[tamanho];
   const borda = tom === 'danger' ? 'border-red-500/50' : 'border-amber-600/50';
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto animate-fade-in">
       <div
         ref={painelRef}
@@ -83,6 +87,7 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

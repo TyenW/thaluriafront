@@ -1195,7 +1195,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
           <>
             {/* Backdrop escuro no mobile para fechar facilmente */}
             <div
-              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px] sm:hidden"
+              className="fixed inset-0 m-0 z-30 bg-black/40 backdrop-blur-[2px] sm:hidden"
               onClick={() => setSelecionada(null)}
               aria-hidden="true"
             />

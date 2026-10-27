@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle2, Hammer, Pencil, Pickaxe, Skull } from 'lucide-react';
 import type { AuditoriaOrigens, OrigemItem } from '../../types/catalogo';
 import { Miniatura } from '../common/Miniatura';
@@ -17,6 +17,16 @@ export interface PainelOrigemItensProps {
   onCriarItem: (nome: string) => void;
 }
 
+/** Quantos itens de cada lista aparecem antes do "ver todos". */
+const PREVIA = 5;
+
+const VerTodos: React.FC<{ total: number; aberto: boolean; onAlternar: () => void }> = ({ total, aberto, onAlternar }) =>
+  total > PREVIA ? (
+    <button type="button" onClick={onAlternar} className="mt-1 text-[11px] font-cinzel font-bold text-amber-400 hover:text-amber-300 underline cursor-pointer">
+      {aberto ? 'Mostrar menos' : `Ver todos (${total})`}
+    </button>
+  ) : null;
+
 const Acao: React.FC<{ onClick: () => void; icone: React.ReactNode; children: React.ReactNode }> = ({ onClick, icone, children }) => (
   <button
     type="button"
@@ -33,6 +43,8 @@ const Acao: React.FC<{ onClick: () => void; icone: React.ReactNode; children: Re
  * Lista os que não têm origem (e os drops que apontam para itens inexistentes) com o atalho para resolver.
  */
 export const PainelOrigemItens: React.FC<PainelOrigemItensProps> = ({ auditoria, onEditarItem, onCriarReceita, onIrParaMonstros, onCriarItem }) => {
+  const [todosSemOrigem, setTodosSemOrigem] = useState(false);
+  const [todosOrfaos, setTodosOrfaos] = useState(false);
   if (!auditoria) return null;
   const semOrigem = auditoria.itens.filter((i) => i.origens.length === 0);
   const comAviso = auditoria.itens.filter((i) => i.origens.length > 0 && i.avisos.length > 0);
@@ -60,41 +72,44 @@ export const PainelOrigemItens: React.FC<PainelOrigemItensProps> = ({ auditoria,
         </p>
 
         {semOrigem.length > 0 && (
-          <ul className="divide-y divide-linha">
-            {semOrigem.map((i) => (
-              <li key={i.id} className="flex flex-col sm:flex-row sm:items-center gap-2 py-2">
-                <span className="flex items-center gap-2 flex-1 min-w-0">
-                  <Miniatura imagem={i.imagemUrl} />
-                  <span className="min-w-0">
-                    <span className="block font-cinzel text-sm font-bold text-pergaminho break-words">{i.nome}</span>
-                    {i.avisos.map((a) => (
-                      <span key={a} className="block text-[11px] text-amber-200">
-                        {a}
-                      </span>
-                    ))}
+          <div>
+            <ul className="divide-y divide-linha">
+              {(todosSemOrigem ? semOrigem : semOrigem.slice(0, PREVIA)).map((i) => (
+                <li key={i.id} className="flex flex-col sm:flex-row sm:items-center gap-2 py-2">
+                  <span className="flex items-center gap-2 flex-1 min-w-0">
+                    <Miniatura imagem={i.imagemUrl} />
+                    <span className="min-w-0">
+                      <span className="block font-cinzel text-sm font-bold text-pergaminho break-words">{i.nome}</span>
+                      {i.avisos.map((a) => (
+                        <span key={a} className="block text-[11px] text-amber-200">
+                          {a}
+                        </span>
+                      ))}
+                    </span>
                   </span>
-                </span>
-                <span className="flex flex-wrap gap-1.5">
-                  <Acao onClick={() => onEditarItem(i.id)} icone={<Pickaxe />}>
-                    Tornar coletável
-                  </Acao>
-                  <Acao onClick={onIrParaMonstros} icone={<Skull />}>
-                    Monstro que dropa
-                  </Acao>
-                  <Acao onClick={() => onCriarReceita(i.id)} icone={<Hammer />}>
-                    Criar receita
-                  </Acao>
-                </span>
-              </li>
-            ))}
-          </ul>
+                  <span className="flex flex-wrap gap-1.5">
+                    <Acao onClick={() => onEditarItem(i.id)} icone={<Pickaxe />}>
+                      Tornar coletável
+                    </Acao>
+                    <Acao onClick={onIrParaMonstros} icone={<Skull />}>
+                      Monstro que dropa
+                    </Acao>
+                    <Acao onClick={() => onCriarReceita(i.id)} icone={<Hammer />}>
+                      Criar receita
+                    </Acao>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <VerTodos total={semOrigem.length} aberto={todosSemOrigem} onAlternar={() => setTodosSemOrigem((v) => !v)} />
+          </div>
         )}
 
         {comAviso.length > 0 && (
           <ul className="space-y-1">
             {comAviso.map((i) => (
               <li key={i.id} className="flex items-center justify-between gap-2 text-[11px] text-amber-200">
-                <span>
+                <span className="min-w-0 break-words">
                   <strong className="font-cinzel">{i.nome}</strong>: {i.avisos.join(' ')}
                 </span>
                 <Acao onClick={() => onEditarItem(i.id)} icone={<Pencil />}>
@@ -109,9 +124,9 @@ export const PainelOrigemItens: React.FC<PainelOrigemItensProps> = ({ auditoria,
           <div className="space-y-1.5">
             <h5 className="text-[11px] font-cinzel font-bold uppercase tracking-wider text-amber-300">Drops com item fora do catálogo</h5>
             <ul className="divide-y divide-linha">
-              {orfaos.map((o) => (
+              {(todosOrfaos ? orfaos : orfaos.slice(0, PREVIA)).map((o) => (
                 <li key={o.dropId} className="flex items-center justify-between gap-2 py-1.5 text-xs">
-                  <span className="text-texto-2">
+                  <span className="text-texto-2 min-w-0 break-words">
                     <strong className="text-pergaminho">{o.itemNome}</strong> · dropado por {o.monstro}
                   </span>
                   <Acao onClick={() => onCriarItem(o.itemNome)} icone={<Pencil />}>
@@ -120,6 +135,7 @@ export const PainelOrigemItens: React.FC<PainelOrigemItensProps> = ({ auditoria,
                 </li>
               ))}
             </ul>
+            <VerTodos total={orfaos.length} aberto={todosOrfaos} onAlternar={() => setTodosOrfaos((v) => !v)} />
           </div>
         )}
       </div>

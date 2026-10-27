@@ -93,23 +93,26 @@
   box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.8);
 }
 
-/* Campo de formulário padrão (input, select, textarea) */
-.campo {
-  width: 100%;
-  background: var(--color-abismo);
-  color: var(--color-pergaminho);
-  border: 1px solid var(--color-linha-forte);
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.campo:focus {
-  border-color: var(--color-ouro);
-}
-.campo[aria-invalid='true'] {
-  border-color: rgba(239, 68, 68, 0.7);
+/* Campo de formulário padrão (input, select, textarea). Na camada components para
+   utilitários como pl-9 ou text-center poderem ajustá-lo. */
+@layer components {
+  .campo {
+    width: 100%;
+    background: var(--color-abismo);
+    color: var(--color-pergaminho);
+    border: 1px solid var(--color-linha-forte);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .campo:focus {
+    border-color: var(--color-ouro);
+  }
+  .campo[aria-invalid='true'] {
+    border-color: rgba(239, 68, 68, 0.7);
+  }
 }
 
 /* Textos e Brilhos Dourados */

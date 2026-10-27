@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Database, Plus, RefreshCw, Search } from 'lucide-react';
+import { AlertTriangle, Database, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { adminService, type EntidadeEsquema, type Registro } from '../../services/adminService';
 import { ModalRegistro } from '../../components/admin/ModalRegistro';
 import { TabelaRegistros } from '../../components/admin/TabelaRegistros';
@@ -36,6 +36,9 @@ export const GerenciarMundoPage: React.FC = () => {
   const [excluindo, setExcluindo] = useState(false);
   const [preenchido, setPreenchido] = useState<Record<string, ValorRegistro> | undefined>(undefined);
   const [origens, setOrigens] = useState<AuditoriaOrigens | null>(null);
+  const [soSemOrigem, setSoSemOrigem] = useState(false);
+  // Só a resposta do pedido mais recente vale (trocar de aba rápido não mistura listas).
+  const pedidoAtual = useRef(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const { avisos, avisar, fechar } = useAvisos();
 
@@ -64,13 +67,15 @@ export const GerenciarMundoPage: React.FC = () => {
 
   const carregarLista = useCallback(async () => {
     if (!entidade) return;
+    const pedido = ++pedidoAtual.current;
     setCarregandoLista(true);
     try {
-      setRegistros(await adminService.listar(entidade.id));
+      const lista = await adminService.listar(entidade.id);
+      if (pedido === pedidoAtual.current) setRegistros(lista);
     } catch (err: any) {
-      avisar('erro', err.message || 'Não foi possível carregar a lista.');
+      if (pedido === pedidoAtual.current) avisar('erro', err.message || 'Não foi possível carregar a lista.');
     } finally {
-      setCarregandoLista(false);
+      if (pedido === pedidoAtual.current) setCarregandoLista(false);
     }
   }, [entidade, avisar]);
 
@@ -85,8 +90,14 @@ export const GerenciarMundoPage: React.FC = () => {
     }
   }, [ehItens]);
 
+  // Troca de entidade: limpa a lista anterior para não exibi-la com as colunas da nova.
   useEffect(() => {
+    setRegistros([]);
     setBusca('');
+    setSoSemOrigem(false);
+  }, [entidade?.id]);
+
+  useEffect(() => {
     carregarLista();
   }, [carregarLista]);
 
@@ -136,11 +147,13 @@ export const GerenciarMundoPage: React.FC = () => {
   const filtrados = entidade
     ? registros.filter(
         (r) =>
-          !termo ||
-          tituloDe(entidade, r, refs).toLowerCase().includes(termo) ||
-          colunas.some((c) => formatarCelula(entidade, c.coluna, r[c.coluna], esquema, refs).toLowerCase().includes(termo))
+          (!soSemOrigem || semOrigem.has(String(r.id))) &&
+          (!termo ||
+            tituloDe(entidade, r, refs).toLowerCase().includes(termo) ||
+            colunas.some((c) => formatarCelula(entidade, c.coluna, r[c.coluna], esquema, refs).toLowerCase().includes(termo)))
       )
     : [];
+  const filtrando = !!termo || soSemOrigem;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 text-left pb-16">
@@ -179,7 +192,7 @@ export const GerenciarMundoPage: React.FC = () => {
                   </h2>
                   {entidade.descricao && <p className="text-[11px] text-nevoa font-sans-clean mt-0.5">{entidade.descricao}</p>}
                 </div>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 sm:flex gap-2 shrink-0">
                   <Button variant="outline" size="sm" icon={<RefreshCw className="w-3.5 h-3.5" />} onClick={aoSalvar} loading={carregandoLista}>
                     Atualizar
                   </Button>
@@ -199,18 +212,38 @@ export const GerenciarMundoPage: React.FC = () => {
                 />
               )}
 
-              <label className="relative block">
-                <span className="sr-only">Buscar</span>
-                <Search className="w-4 h-4 text-nevoa absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
-                <input
-                  id="input-admin-busca"
-                  type="search"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder={`Buscar em ${entidade.rotulo.toLowerCase()}…`}
-                  className="campo pl-9"
-                />
-              </label>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <label className="relative block flex-1">
+                  <span className="sr-only">Buscar</span>
+                  <Search className="w-4 h-4 text-nevoa absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
+                  <input
+                    id="input-admin-busca"
+                    type="search"
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder={`Buscar em ${entidade.rotulo.toLowerCase()}…`}
+                    className="campo pl-9"
+                  />
+                </label>
+                {ehItens && semOrigem.size > 0 && (
+                  <button
+                    type="button"
+                    aria-pressed={soSemOrigem}
+                    onClick={() => setSoSemOrigem((v) => !v)}
+                    className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-cinzel font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                      soSemOrigem ? 'border-red-500/60 bg-red-950/40 text-red-200' : 'border-linha-forte text-nevoa hover:text-texto'
+                    }`}
+                  >
+                    {soSemOrigem && <X className="w-3.5 h-3.5" />}
+                    Só sem origem ({semOrigem.size})
+                  </button>
+                )}
+              </div>
+              {filtrando && !carregandoLista && registros.length > 0 && (
+                <p className="text-[11px] text-nevoa" aria-live="polite">
+                  Mostrando {filtrados.length} de {registros.length}.
+                </p>
+              )}
 
               {carregandoLista ? (
                 <div className="space-y-2">
@@ -219,7 +252,25 @@ export const GerenciarMundoPage: React.FC = () => {
                   ))}
                 </div>
               ) : filtrados.length === 0 ? (
-                <p className="text-center text-sm text-nevoa py-10">{registros.length === 0 ? 'Nenhum registro cadastrado ainda.' : `Nada encontrado para “${busca}”.`}</p>
+                <div className="text-center text-sm text-nevoa py-10 space-y-3">
+                  <p>{registros.length === 0 ? 'Nenhum registro cadastrado ainda.' : termo ? `Nada encontrado para “${busca}”.` : 'Nenhum registro neste filtro.'}</p>
+                  {registros.length === 0 ? (
+                    <Button variant="gold" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => novoEm(entidade.id)}>
+                      Cadastrar o primeiro
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setBusca('');
+                        setSoSemOrigem(false);
+                      }}
+                    >
+                      Limpar filtros
+                    </Button>
+                  )}
+                </div>
               ) : (
                 <TabelaRegistros
                   entidade={entidade}

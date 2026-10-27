@@ -2,6 +2,7 @@ import React from 'react';
 import type { CampoEsquema, EntidadeEsquema, ValorRegistro } from '../../services/adminService';
 import { rotuloEnum } from '../../utils/formatadores';
 import { CampoImagem } from '../common/CampoImagem';
+import { SeletorBusca } from '../common/SeletorBusca';
 
 export interface OpcaoReferencia {
   id: string;
@@ -9,6 +10,8 @@ export interface OpcaoReferencia {
 }
 
 const IMAGEM_MAX_CARACTERES = 1_500_000;
+/** A partir de quantas opções a lista troca o select nativo pelo seletor com busca. */
+const LIMITE_LISTA_NATIVA = 8;
 
 /** Valores iniciais de um novo registro a partir dos padrões do esquema. */
 export function valoresPadrao(entidade: EntidadeEsquema): Record<string, ValorRegistro> {
@@ -119,7 +122,55 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
             </span>
           </label>
         );
-      case 'ENUM':
+      case 'ENUM': {
+        // Poucas opções obrigatórias: botões lado a lado, escolhidos com um toque.
+        if (c.obrigatorio && c.opcoes.length <= 3) {
+          return (
+            <div key={c.coluna}>
+              <span id={`${id}-rotulo`} className="block text-[11px] font-cinzel font-semibold uppercase tracking-wider text-ouro/90 mb-1">
+                {c.rotulo} <span className="text-red-300">*</span>
+              </span>
+              <div role="radiogroup" aria-labelledby={`${id}-rotulo`} className="grid gap-1 p-1 rounded-lg border border-linha-forte bg-abismo" style={{ gridTemplateColumns: `repeat(${c.opcoes.length}, minmax(0, 1fr))` }}>
+                {c.opcoes.map((o) => {
+                  const marcada = texto === o;
+                  return (
+                    <button
+                      key={o}
+                      id={marcada ? id : undefined}
+                      type="button"
+                      role="radio"
+                      aria-checked={marcada}
+                      onClick={() => onAlterar(c.coluna, o)}
+                      className={`px-2 py-1.5 rounded-md text-xs font-cinzel font-bold truncate transition-colors cursor-pointer ${
+                        marcada ? 'bg-ouro/20 text-pergaminho shadow-[inset_0_0_0_1px_rgba(212,175,55,0.5)]' : 'text-nevoa hover:text-texto hover:bg-white/5'
+                      }`}
+                    >
+                      {rotuloEnum(o)}
+                    </button>
+                  );
+                })}
+              </div>
+              {rodape}
+            </div>
+          );
+        }
+        if (c.opcoes.length >= LIMITE_LISTA_NATIVA) {
+          return (
+            <div key={c.coluna}>
+              {rotulo}
+              <SeletorBusca
+                id={id}
+                valor={texto}
+                opcoes={c.opcoes.map((o) => ({ valor: o, rotulo: rotuloEnum(o) }))}
+                onAlterar={(v) => onAlterar(c.coluna, v)}
+                permitirVazio={!c.obrigatorio}
+                placeholder="—"
+                invalido={!!erro}
+              />
+              {rodape}
+            </div>
+          );
+        }
         return (
           <div key={c.coluna}>
             {rotulo}
@@ -134,19 +185,20 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
             {rodape}
           </div>
         );
+      }
       case 'REFERENCIA': {
         const opcoes = referencias[c.referencia ?? ''] ?? [];
         return (
           <div key={c.coluna}>
             {rotulo}
-            <select id={id} value={texto} onChange={(e) => onAlterar(c.coluna, e.target.value || null)} aria-invalid={!!erro} className="campo">
-              <option value="">{opcoes.length === 0 ? 'Nenhum registro cadastrado' : 'Selecione…'}</option>
-              {opcoes.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.titulo}
-                </option>
-              ))}
-            </select>
+            <SeletorBusca
+              id={id}
+              valor={texto}
+              opcoes={opcoes.map((o) => ({ valor: o.id, rotulo: o.titulo }))}
+              onAlterar={(v) => onAlterar(c.coluna, v)}
+              permitirVazio={!c.obrigatorio}
+              invalido={!!erro}
+            />
             {rodape}
           </div>
         );

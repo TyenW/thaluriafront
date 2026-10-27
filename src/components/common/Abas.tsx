@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 export interface AbaDef<T extends string> {
   id: T;
@@ -18,8 +18,19 @@ export interface AbasProps<T extends string> {
 
 /** Barra de abas rolável no celular, navegável com as setas do teclado. */
 export function Abas<T extends string>({ abas, ativa, onTrocar, rotulo, prefixo = 'aba' }: AbasProps<T>) {
+  const listaRef = useRef<HTMLDivElement>(null);
+
+  // No celular a barra rola de lado: traz a aba ativa para a vista (ex.: ao abrir um link ?aba=...).
+  useEffect(() => {
+    const lista = listaRef.current;
+    const aba = lista?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!lista || !aba) return;
+    const fora = aba.offsetLeft < lista.scrollLeft || aba.offsetLeft + aba.offsetWidth > lista.scrollLeft + lista.clientWidth;
+    if (fora) lista.scrollTo({ left: aba.offsetLeft - (lista.clientWidth - aba.offsetWidth) / 2, behavior: 'smooth' });
+  }, [ativa]);
+
   return (
-    <div role="tablist" aria-label={rotulo} className="abas-rolaveis flex gap-1 overflow-x-auto border-b border-linha">
+    <div ref={listaRef} role="tablist" aria-label={rotulo} className="abas-rolaveis relative flex gap-1 overflow-x-auto border-b border-linha">
       {abas.map((aba, i) => {
         const selecionada = aba.id === ativa;
         return (
