@@ -29,7 +29,7 @@ export function useAvisos() {
 }
 
 export const PainelAvisos: React.FC<{ avisos: Aviso[]; onFechar: (id: number) => void }> = ({ avisos, onFechar }) => (
-  <div className="fixed z-[60] bottom-4 inset-x-4 sm:inset-x-auto sm:right-6 sm:w-96 space-y-2 pointer-events-none" aria-live="polite">
+  <div className="fixed z-[60] top-3 sm:top-auto sm:bottom-4 inset-x-4 sm:inset-x-auto sm:right-6 sm:w-96 space-y-2 pointer-events-none" aria-live="polite">
     {avisos.map((a) => (
       <div
         key={a.id}

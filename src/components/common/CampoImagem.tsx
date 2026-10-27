@@ -35,11 +35,12 @@ export const CampoImagem: React.FC<CampoImagemProps> = ({ id, valor, onAlterar, 
     }
   };
 
-  const moldura = formato === 'retrato' ? 'w-28 h-36' : 'w-28 h-28';
+  // Menor no celular, ao lado dos botões: a imagem não empurra o resto do formulário para baixo.
+  const moldura = formato === 'retrato' ? 'w-20 h-28 sm:w-28 sm:h-36' : 'w-20 h-20 sm:w-28 sm:h-28';
   const temImagem = !!valor && !quebrada;
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-start">
+    <div className="flex flex-row gap-3 sm:gap-4 items-start">
       <div className={`${moldura} shrink-0 rounded-xl bg-abismo border border-linha-forte overflow-hidden flex items-center justify-center`}>
         {temImagem ? (
           <img src={valor} alt="Pré-visualização" className="w-full h-full object-cover" onError={() => setQuebrada(true)} />
@@ -51,7 +52,7 @@ export const CampoImagem: React.FC<CampoImagemProps> = ({ id, valor, onAlterar, 
         )}
       </div>
 
-      <div className="flex-1 w-full space-y-2">
+      <div className="flex-1 min-w-0 space-y-2">
         <label className="flex items-center justify-center gap-2 p-2.5 bg-painel-alto hover:bg-painel-alto/70 border border-dashed border-ouro/40 hover:border-ouro rounded-lg cursor-pointer transition-colors text-xs font-cinzel text-amber-300">
           <Upload className="w-4 h-4" />
           <span>{processando ? 'Preparando imagem…' : 'Enviar do dispositivo'}</span>

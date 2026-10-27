@@ -10,6 +10,8 @@ export interface OpcaoReferencia {
 }
 
 const IMAGEM_MAX_CARACTERES = 1_500_000;
+/** No celular, texto e listas ocupam a linha toda; números curtos andam em pares (formulários menos compridos). */
+const LARGO = 'col-span-2 sm:col-span-1';
 /** A partir de quantas opções a lista troca o select nativo pelo seletor com busca. */
 const LIMITE_LISTA_NATIVA = 8;
 
@@ -70,6 +72,8 @@ function agrupar(campos: CampoEsquema[]): { nome: string | null; campos: CampoEs
     if (ultimo && ultimo.nome === nome) ultimo.campos.push(c);
     else grupos.push({ nome, campos: [c] });
   }
+  // Imagem no fim de cada grupo: o que é obrigatório (nome, tipo) aparece primeiro, sem rolar.
+  for (const g of grupos) g.campos = [...g.campos.filter((c) => c.tipo !== 'IMAGEM'), ...g.campos.filter((c) => c.tipo === 'IMAGEM')];
   return grupos;
 }
 
@@ -97,10 +101,12 @@ export interface FormularioRegistroProps {
   referencias: Record<string, OpcaoReferencia[]>;
   /** Colunas que o chamador desenha por conta própria (ex.: posição no mapa). */
   ocultar?: string[];
+  /** Só os campos destes grupos (etapas do editor); null = campos sem grupo. */
+  grupos?: (string | null)[];
   prefixoId: string;
 }
 
-export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade, valores, onAlterar, erros, referencias, ocultar = [], prefixoId }) => {
+export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade, valores, onAlterar, erros, referencias, ocultar = [], grupos: soGrupos, prefixoId }) => {
   const campo = (c: CampoEsquema, compacto: boolean) => {
     const id = `${prefixoId}-${c.coluna}`;
     const valor = valores[c.coluna];
@@ -124,7 +130,7 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
     switch (c.tipo) {
       case 'IMAGEM':
         return (
-          <div key={c.coluna} className="sm:col-span-2">
+          <div key={c.coluna} className="col-span-2">
             {rotulo}
             <CampoImagem id={id} valor={texto} onAlterar={(v) => onAlterar(c.coluna, v || null)} />
             {rodape}
@@ -132,7 +138,7 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
         );
       case 'BOOLEANO':
         return (
-          <label key={c.coluna} htmlFor={id} className="flex items-start gap-2.5 p-3 rounded-lg border border-linha bg-abismo/50 cursor-pointer hover:border-linha-forte">
+          <label key={c.coluna} htmlFor={id} className="col-span-2 sm:col-span-1 flex items-start gap-2.5 p-3 rounded-lg border border-linha bg-abismo/50 cursor-pointer hover:border-linha-forte">
             <input id={id} type="checkbox" checked={valor === true} onChange={(e) => onAlterar(c.coluna, e.target.checked)} className="mt-0.5 accent-amber-500 w-4 h-4" />
             <span>
               <span className="text-xs font-cinzel text-pergaminho">{c.rotulo}</span>
@@ -144,7 +150,7 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
         // Poucas opções obrigatórias: botões lado a lado, escolhidos com um toque.
         if (c.obrigatorio && c.opcoes.length <= 3) {
           return (
-            <div key={c.coluna}>
+            <div key={c.coluna} className={LARGO}>
               <span id={`${id}-rotulo`} className="block text-[11px] font-cinzel font-semibold uppercase tracking-wider text-ouro/90 mb-1">
                 {c.rotulo} <span className="text-red-300">*</span>
               </span>
@@ -174,7 +180,7 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
         }
         if (c.opcoes.length >= LIMITE_LISTA_NATIVA) {
           return (
-            <div key={c.coluna}>
+            <div key={c.coluna} className={LARGO}>
               {rotulo}
               <SeletorBusca
                 id={id}
@@ -190,7 +196,7 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
           );
         }
         return (
-          <div key={c.coluna}>
+          <div key={c.coluna} className={LARGO}>
             {rotulo}
             <select id={id} value={texto} onChange={(e) => onAlterar(c.coluna, e.target.value || null)} aria-invalid={!!erro} className="campo">
               {(!c.obrigatorio || valor == null) && <option value="">—</option>}
@@ -207,7 +213,7 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
       case 'REFERENCIA': {
         const opcoes = referencias[c.referencia ?? ''] ?? [];
         return (
-          <div key={c.coluna}>
+          <div key={c.coluna} className={LARGO}>
             {rotulo}
             <SeletorBusca
               id={id}
@@ -223,7 +229,7 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
       }
       case 'TEXTO_LONGO':
         return (
-          <div key={c.coluna} className="sm:col-span-2">
+          <div key={c.coluna} className="col-span-2">
             {rotulo}
             <textarea id={id} rows={3} value={texto} onChange={(e) => onAlterar(c.coluna, e.target.value)} aria-invalid={!!erro} className="campo" />
             {rodape}
@@ -231,7 +237,7 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
         );
       default:
         return (
-          <div key={c.coluna}>
+          <div key={c.coluna} className={c.tipo === 'TEXTO' ? LARGO : 'col-span-1'}>
             {rotulo}
             <input
               id={id}
@@ -251,16 +257,19 @@ export const FormularioRegistro: React.FC<FormularioRegistroProps> = ({ entidade
     }
   };
 
-  const grupos = agrupar(entidade.campos.filter((c) => !ocultar.includes(c.coluna) && campoVisivel(c, valores)));
+  const grupos = agrupar(
+    entidade.campos.filter((c) => !ocultar.includes(c.coluna) && campoVisivel(c, valores) && (!soGrupos || soGrupos.includes(c.grupo ?? null)))
+  );
 
   return (
     <div className="space-y-5">
       {grupos.map((g, i) => {
         // Blocos de muitos números de rótulo curto (ex.: os 6 atributos) ficam numa grade compacta.
         const compacto = g.campos.length >= 4 && g.campos.every((c) => c.tipo === 'INTEIRO' && c.rotulo.length <= 6);
-        const grade = compacto ? 'grid grid-cols-3 sm:grid-cols-6 gap-2' : 'grid grid-cols-1 sm:grid-cols-2 gap-3';
+        const grade = compacto ? 'grid grid-cols-3 sm:grid-cols-6 gap-2' : 'grid grid-cols-2 gap-3';
         const corpo = <div className={grade}>{g.campos.map((c) => campo(c, compacto))}</div>;
-        if (!g.nome) return <div key={`sem-grupo-${i}`}>{corpo}</div>;
+        // Sem grupo, ou uma etapa só com ele (o título já está no cabeçalho da etapa)
+        if (!g.nome || soGrupos?.length === 1) return <div key={g.nome ?? `sem-grupo-${i}`}>{corpo}</div>;
         return (
           <fieldset key={g.nome} className="space-y-2.5">
             <legend className="w-full flex items-center gap-2 font-cinzel text-xs font-bold uppercase tracking-widest text-amber-300 mb-2.5">

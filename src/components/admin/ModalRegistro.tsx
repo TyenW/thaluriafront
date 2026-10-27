@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { AlertTriangle, ChevronDown, Eye, MapPin, Pencil, Plus, Route, Save } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Eye, MapPin, Pencil, Plus, Route, Save } from 'lucide-react';
 import { adminService, ENTIDADES_COM_LIGACOES, type EntidadeEsquema, type Registro, type ValorRegistro } from '../../services/adminService';
 import { distanciaKmSugerida } from '../map/tracadoRotas';
 import { Button } from '../common/Button';
@@ -9,7 +9,19 @@ import { FormularioRegistro, validarCampos, valoresPadrao } from './FormularioRe
 import { MapaEditor, avisosDePosicao, tracadoDaRota } from './MapaEditor';
 import { SubLista } from './SubLista';
 import { PainelLigacoes } from './PainelLigacoes';
-import { cidadesDoEditor, monstroDoFormulario, numeroOuNulo, opcoesDe, tituloDe, type Avisar, type Referencias } from './registros';
+import { cidadesDoEditor, formatarCelula, monstroDoFormulario, numeroOuNulo, opcoesDe, tituloDe, type Avisar, type Referencias } from './registros';
+
+/** Entidades editadas em etapas (formulário longo demais para uma tela só). */
+const ENTIDADES_EM_ETAPAS = ['monstros'];
+
+interface Secao {
+  id: string;
+  titulo: string;
+  tipo: 'grupo' | 'filho' | 'ligacoes';
+  grupo?: string | null;
+  filho?: EntidadeEsquema;
+  colunas: string[];
+}
 
 export interface ModalRegistroProps {
   entidade: EntidadeEsquema;
@@ -84,9 +96,64 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
   }
   if (tracado?.impossivel && tracado.motivo) avisosRota.push(tracado.motivo);
 
-  const salvar = async (criarOutro = false) => {
+  // ---------------- Etapas (entidades longas, como monstros) ----------------
+  // Criação: assistente que segue os grupos do esquema e depois as sublistas.
+  // Edição: escolhe-se a seção a editar, sem rolar o formulário inteiro.
+  const emEtapas = ENTIDADES_EM_ETAPAS.includes(entidade.id);
+  const criando = !registro;
+  const secoesCampos: Secao[] = [...new Set(entidade.campos.map((c) => c.grupo ?? null))].map((g) => ({
+    id: `g:${g ?? ''}`,
+    titulo: g ?? 'Dados',
+    tipo: 'grupo',
+    grupo: g,
+    colunas: entidade.campos.filter((c) => (c.grupo ?? null) === g).map((c) => c.coluna),
+  }));
+  const secoesFilhos: Secao[] = filhos.map((f) => ({ id: `f:${f.id}`, titulo: f.rotulo, tipo: 'filho', filho: f, colunas: [] }));
+  const comLigacoes = !!onAbrir && ENTIDADES_COM_LIGACOES.includes(entidade.id);
+  const secoes: Secao[] = [
+    ...secoesCampos,
+    ...secoesFilhos,
+    ...(idAtual && comLigacoes && !criando ? [{ id: 'ligacoes', titulo: 'Ligações no mundo', tipo: 'ligacoes' as const, colunas: [] }] : []),
+  ];
+  const [etapa, setEtapa] = useState<string | null>(() => (emEtapas && criando ? secoesCampos[0]?.id ?? null : null));
+  const secaoAtual = secoes.find((x) => x.id === etapa) ?? null;
+  const indice = secaoAtual ? secoes.indexOf(secaoAtual) : -1;
+  const errosDe = (x: Secao) => Object.keys(erros).filter((c) => x.colunas.includes(c));
+  const topoRef = useRef<HTMLDivElement>(null);
+  const etapasRef = useRef<HTMLOListElement>(null);
+  // A faixa de etapas rola de lado no celular: mantém a etapa atual à vista.
+  useEffect(() => {
+    const lista = etapasRef.current;
+    const atual = lista?.querySelector<HTMLElement>('[aria-current="step"]');
+    if (lista && atual) lista.scrollTo({ left: atual.offsetLeft - (lista.clientWidth - atual.offsetWidth) / 2, behavior: 'smooth' });
+  }, [etapa]);
+  const irPara = (id: string | null) => {
+    setEtapa(id);
+    setErroServidor(null);
+    requestAnimationFrame(() => topoRef.current?.scrollIntoView({ block: 'start' }));
+  };
+
+  // Na tela de seções, quantos golpes/drops existem (resumo dos cartões).
+  const [contagemFilhos, setContagemFilhos] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!emEtapas || etapa !== null || !idAtual) return;
+    let vivo = true;
+    Promise.all(filhos.map(async (f) => [f.id, (await adminService.listar(f.id, idAtual)).length] as const))
+      .then((pares) => vivo && setContagemFilhos(Object.fromEntries(pares)))
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emEtapas, etapa, idAtual]);
+
+  type Depois = 'padrao' | 'outro' | 'secoes' | 'proxima';
+  const salvar = async (depois: Depois = 'padrao') => {
     setTentou(true);
     if (Object.keys(erros).length > 0) {
+      // Em etapas, leva à primeira etapa com erro
+      const comErro = emEtapas ? secoesCampos.find((x) => errosDe(x).length > 0) : null;
+      if (comErro && comErro.id !== etapa) irPara(comErro.id);
       setErroServidor('Corrija os campos destacados antes de salvar.');
       return;
     }
@@ -99,12 +166,16 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
       avisar('sucesso', `Registro salvo em ${entidade.rotulo}.`);
       onSalvo(novoId);
       setVersaoLigacoes((v) => v + 1);
-      if (criarOutro && onCriarOutro) onCriarOutro();
-      // Registro novo com filhos (golpes, insumos...): continua aberto para cadastrá-los.
-      else if (!idAtual && filhos.length > 0) {
+      setSalvo(JSON.stringify(valores));
+      if (depois === 'outro' && onCriarOutro) onCriarOutro();
+      else if (depois === 'secoes') irPara(null);
+      else if (depois === 'proxima') {
         setIdAtual(novoId);
-        setSalvo(JSON.stringify(valores));
-      } else onFechar();
+        irPara(secoesFilhos[0]?.id ?? null);
+      }
+      // Registro novo com filhos (golpes, insumos...): continua aberto para cadastrá-los.
+      else if (!idAtual && filhos.length > 0) setIdAtual(novoId);
+      else onFechar();
     } catch (err: any) {
       setErroServidor(err.message || 'Não foi possível salvar.');
     } finally {
@@ -112,22 +183,271 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
     }
   };
 
-  const formulario = (
-    <div className="space-y-4 min-w-0">
-      {entidade.chaveTexto && !idAtual && (
-        <div>
-          <label htmlFor="admin-chave" className="block text-[11px] font-cinzel font-semibold uppercase tracking-wider text-ouro/90 mb-1">
-            Identificador (opcional)
-          </label>
-          <input
-            id="admin-chave"
-            value={chaveTexto}
-            onChange={(e) => setChaveTexto(e.target.value)}
-            placeholder="Gerado a partir do nome se ficar vazio (ex.: LOBO_GELIDO)"
-            className="campo font-mono"
-          />
+  const campoChave = entidade.chaveTexto && !idAtual && (
+    <div>
+      <label htmlFor="admin-chave" className="block text-[11px] font-cinzel font-semibold uppercase tracking-wider text-ouro/90 mb-1">
+        Identificador (opcional)
+      </label>
+      <input
+        id="admin-chave"
+        value={chaveTexto}
+        onChange={(e) => setChaveTexto(e.target.value)}
+        placeholder="Gerado a partir do nome se ficar vazio (ex.: LOBO_GELIDO)"
+        className="campo font-mono"
+      />
+    </div>
+  );
+
+  const caixaErro = erroServidor && (
+    <p role="alert" className="flex items-start gap-2 p-3 rounded-lg bg-red-950/50 border border-red-500/50 text-xs text-red-100">
+      <AlertTriangle className="w-4 h-4 shrink-0" /> {erroServidor}
+    </p>
+  );
+
+  const sublista = (f: EntidadeEsquema) => (
+    <SubLista key={f.id} entidade={f} esquema={esquema} paiId={idAtual!} pai={valores} refs={refs} avisar={avisar} onMudou={() => setVersaoLigacoes((v) => v + 1)} />
+  );
+  const ligacoes = idAtual && comLigacoes && (
+    <PainelLigacoes entidade={entidade.id} id={idAtual} versao={versaoLigacoes} onAbrir={(e, id) => sair(() => onAbrir!(e, id))} />
+  );
+
+  // Rodapé fixo: salvar fica à mão mesmo no fim de formulários longos. -bottom-4 compensa o padding de quem rola (painel no celular, fundo no desktop).
+  const rodape = (botoes: React.ReactNode) => (
+    <div className="sticky -bottom-4 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-painel/95 backdrop-blur border-t border-linha space-y-2">
+      {confirmandoSaida && (
+        <div role="alert" className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-lg border border-amber-600/50 bg-amber-950/40 text-xs text-amber-100">
+          <span className="flex items-center gap-1.5 flex-1">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" /> Há alterações não salvas.
+          </span>
+          <span className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSaidaPendente(null)}>
+              Continuar editando
+            </Button>
+            <Button variant="outline" size="sm" className="text-red-200 border-red-700/60 hover:bg-red-950/40" onClick={() => saidaPendente?.()}>
+              Descartar
+            </Button>
+          </span>
         </div>
       )}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {sujo && !confirmandoSaida && <span className="hidden sm:block mr-auto text-[11px] text-nevoa">Alterações não salvas</span>}
+        {botoes}
+      </div>
+    </div>
+  );
+
+  // Resumo de uma seção no cartão da tela de seções.
+  const resumoDe = (x: Secao): string => {
+    if (x.tipo === 'filho') {
+      const n = contagemFilhos[x.filho!.id];
+      return n == null ? 'Carregando…' : n === 0 ? 'Nenhum cadastrado' : `${n} cadastrado${n === 1 ? '' : 's'}`;
+    }
+    if (x.tipo === 'ligacoes') return 'Onde aparece no mundo';
+    const partes = x.colunas
+      .map((c) => entidade.campos.find((k) => k.coluna === c)!)
+      .filter((c) => c.tipo !== 'IMAGEM' && c.tipo !== 'TEXTO_LONGO' && valores[c.coluna] != null && valores[c.coluna] !== '')
+      .slice(0, 4)
+      .map((c) =>
+        c.tipo === 'BOOLEANO'
+          ? valores[c.coluna]
+            ? c.rotulo
+            : null
+          : `${/^[A-Z]{2,4}$/.test(c.rotulo) ? `${c.rotulo} ` : ''}${formatarCelula(entidade, c.coluna, valores[c.coluna], esquema, refs)}`
+      )
+      .filter(Boolean);
+    return partes.length ? partes.join(' · ') : 'Nada preenchido';
+  };
+
+  const formularioEmEtapas = () => {
+    // Tela de seções (edição)
+    if (!secaoAtual) {
+      return (
+        <div ref={topoRef} className="space-y-4 min-w-0 scroll-mt-20">
+          <p className="text-xs text-nevoa">O que você quer editar?</p>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {secoes.map((x, i) => {
+              const comErro = tentou && errosDe(x).length > 0;
+              return (
+                <li key={x.id}>
+                  <button
+                    type="button"
+                    onClick={() => irPara(x.id)}
+                    className={`w-full h-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors cursor-pointer ${
+                      comErro ? 'border-red-500/60 bg-red-950/20' : 'border-linha bg-abismo/60 hover:border-ouro/50 hover:bg-amber-400/5'
+                    }`}
+                  >
+                    <span className="flex items-center justify-center w-8 h-8 shrink-0 rounded-full border border-linha-forte font-cinzel text-xs text-amber-300">{i + 1}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-cinzel text-sm font-bold text-pergaminho">{x.titulo}</span>
+                      <span className="block text-[11px] text-nevoa truncate">{comErro ? 'Há campos para corrigir' : resumoDe(x)}</span>
+                    </span>
+                    <ChevronRight className="w-4 h-4 shrink-0 text-nevoa" aria-hidden="true" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {caixaErro}
+          {rodape(
+            <>
+              <Button variant="ghost" size="sm" onClick={pedirFechar} disabled={salvando}>
+                {sujo ? 'Cancelar' : 'Fechar'}
+              </Button>
+              {sujo && (
+                <Button id="btn-admin-salvar" variant="gold" size="sm" icon={<Save className="w-3.5 h-3.5" />} loading={salvando} onClick={() => salvar('secoes')}>
+                  Salvar alterações
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    const ultimaDeCampos = secaoAtual.tipo === 'grupo' && secoesCampos.indexOf(secaoAtual) === secoesCampos.length - 1;
+    const proxima = secoes[indice + 1];
+    const anterior = secoes[indice - 1];
+    // Criando e ainda não salvo: só as etapas de campos; sublistas exigem o registro salvo.
+    const bloqueada = (x: Secao) => x.tipo !== 'grupo' && !idAtual;
+    // Depois de salvo, voltar aos campos editaria o registro já criado: o assistente segue só para a frente.
+    const podeVoltar = anterior && !(idAtual && secaoAtual.tipo === 'filho' && anterior.tipo === 'grupo');
+
+    const avancar = () => {
+      if (secaoAtual.tipo === 'grupo' && errosDe(secaoAtual).length > 0) {
+        setTentou(true);
+        setErroServidor('Preencha os campos destacados para continuar.');
+        return;
+      }
+      irPara(proxima!.id);
+    };
+
+    return (
+      <div ref={topoRef} className="space-y-4 min-w-0 scroll-mt-20">
+        {criando ? (
+          <nav aria-label="Etapas" className="space-y-2">
+            <div className="flex items-center justify-between gap-2 text-[11px] font-cinzel text-nevoa">
+              <span>
+                Etapa {indice + 1} de {secoes.length}
+              </span>
+              {!idAtual && secoesFilhos.length > 0 && (
+                <span className="text-apagado text-right">{secoesFilhos.map((f) => f.titulo).join(' e ')} depois de salvar</span>
+              )}
+            </div>
+            <div className="h-1 rounded-full bg-linha overflow-hidden">
+              <div className="h-full bg-ouro transition-all" style={{ width: `${((indice + 1) / secoes.length) * 100}%` }} />
+            </div>
+            <ol ref={etapasRef} className="abas-rolaveis relative flex gap-1.5 overflow-x-auto pb-1">
+              {secoes.map((x, i) => {
+                const atual = x.id === etapa;
+                const comErro = tentou && errosDe(x).length > 0;
+                return (
+                  <li key={x.id} className="shrink-0">
+                    <button
+                      type="button"
+                      disabled={bloqueada(x) || (!!idAtual && x.tipo === 'grupo')}
+                      onClick={() => irPara(x.id)}
+                      aria-current={atual ? 'step' : undefined}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-cinzel font-bold whitespace-nowrap cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
+                        atual ? 'border-ouro/60 bg-ouro/15 text-pergaminho' : comErro ? 'border-red-500/60 text-red-200' : 'border-linha-forte text-nevoa hover:text-texto'
+                      }`}
+                    >
+                      <span className="font-mono">{i + 1}</span> {x.titulo}
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+        ) : (
+          <button type="button" onClick={() => irPara(null)} className="inline-flex items-center gap-1 text-xs font-cinzel text-amber-400 hover:text-amber-300 cursor-pointer">
+            <ChevronLeft className="w-4 h-4" /> Todas as seções
+          </button>
+        )}
+
+        <h4 className="font-cinzel text-base font-bold text-pergaminho">{secaoAtual.titulo}</h4>
+
+        {secaoAtual.tipo === 'grupo' && (
+          <>
+            <FormularioRegistro
+              entidade={entidade}
+              valores={valores}
+              onAlterar={alterar}
+              erros={tentou ? erros : {}}
+              referencias={opcoes}
+              grupos={[secaoAtual.grupo ?? null]}
+              prefixoId={`admin-${entidade.id}`}
+            />
+            {secaoAtual === secoesCampos[0] && campoChave && (
+              <details className="rounded-lg border border-linha bg-abismo/50 p-3">
+                <summary className="text-[11px] font-cinzel uppercase tracking-wider text-nevoa cursor-pointer">Avançado</summary>
+                <div className="mt-3">{campoChave}</div>
+              </details>
+            )}
+          </>
+        )}
+        {secaoAtual.tipo === 'filho' && idAtual && sublista(secaoAtual.filho!)}
+        {secaoAtual.tipo === 'ligacoes' && ligacoes}
+
+        {caixaErro}
+
+        {rodape(
+          criando ? (
+            <>
+              {podeVoltar ? (
+                <Button variant="ghost" size="sm" icon={<ChevronLeft className="w-3.5 h-3.5" />} onClick={() => irPara(anterior!.id)} disabled={salvando}>
+                  Voltar
+                </Button>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={pedirFechar} disabled={salvando}>
+                  {idAtual ? 'Fechar' : 'Cancelar'}
+                </Button>
+              )}
+              {ultimaDeCampos && !idAtual ? (
+                <Button
+                  id="btn-admin-salvar"
+                  variant="gold"
+                  size="sm"
+                  icon={<Save className="w-3.5 h-3.5" />}
+                  loading={salvando}
+                  onClick={() => salvar(secoesFilhos.length ? 'proxima' : 'padrao')}
+                >
+                  {secoesFilhos.length ? `Salvar e cadastrar ${secoesFilhos.map((f) => f.titulo.toLowerCase()).join(' e ')}` : 'Salvar'}
+                </Button>
+              ) : proxima && !bloqueada(proxima) ? (
+                <Button variant="gold" size="sm" onClick={avancar} className="whitespace-nowrap" title={`Próximo: ${proxima.titulo}`}>
+                  Próximo<span className="hidden sm:inline">: {proxima.titulo}</span>
+                  <ChevronRight className="inline-block align-[-2px] w-3.5 h-3.5 ml-0.5" />
+                </Button>
+              ) : (
+                idAtual && (
+                  <Button variant="gold" size="sm" onClick={onFechar}>
+                    Concluir
+                  </Button>
+                )
+              )}
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" icon={<ChevronLeft className="w-3.5 h-3.5" />} onClick={() => irPara(null)} disabled={salvando}>
+                Seções
+              </Button>
+              {secaoAtual.tipo === 'grupo' && (
+                <Button id="btn-admin-salvar" variant="gold" size="sm" icon={<Save className="w-3.5 h-3.5" />} loading={salvando} disabled={!sujo} onClick={() => salvar('secoes')}>
+                  {sujo ? 'Salvar' : 'Sem alterações'}
+                </Button>
+              )}
+            </>
+          )
+        )}
+      </div>
+    );
+  };
+
+  const formulario = emEtapas ? (
+    formularioEmEtapas()
+  ) : (
+    <div className="space-y-4 min-w-0">
+      {campoChave}
 
       <FormularioRegistro
         entidade={entidade}
@@ -191,50 +511,27 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
         </div>
       )}
 
-      {erroServidor && (
-        <p role="alert" className="flex items-start gap-2 p-3 rounded-lg bg-red-950/50 border border-red-500/50 text-xs text-red-100">
-          <AlertTriangle className="w-4 h-4 shrink-0" /> {erroServidor}
-        </p>
-      )}
+      {caixaErro}
 
-      {/* Rodapé fixo: salvar fica à mão mesmo no fim de formulários longos. -bottom-4 compensa o padding de quem rola (painel no celular, fundo no desktop). */}
-      <div className="sticky -bottom-4 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-painel/95 backdrop-blur border-t border-linha space-y-2">
-        {confirmandoSaida && (
-          <div role="alert" className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-lg border border-amber-600/50 bg-amber-950/40 text-xs text-amber-100">
-            <span className="flex items-center gap-1.5 flex-1">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" /> Há alterações não salvas.
-            </span>
-            <span className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setSaidaPendente(null)}>
-                Continuar editando
-              </Button>
-              <Button variant="outline" size="sm" className="text-red-200 border-red-700/60 hover:bg-red-950/40" onClick={() => saidaPendente?.()}>
-                Descartar
-              </Button>
-            </span>
-          </div>
-        )}
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
-          {sujo && !confirmandoSaida && <span className="hidden sm:block mr-auto text-[11px] text-nevoa">Alterações não salvas</span>}
+      {rodape(
+        <>
           <Button variant="ghost" size="sm" onClick={pedirFechar} disabled={salvando}>
             {idAtual && filhos.length > 0 && !sujo ? 'Fechar' : 'Cancelar'}
           </Button>
           {!idAtual && filhos.length === 0 && onCriarOutro && (
-            <Button variant="outline" size="sm" icon={<Plus className="w-3.5 h-3.5" />} disabled={salvando} onClick={() => salvar(true)}>
+            <Button variant="outline" size="sm" icon={<Plus className="w-3.5 h-3.5" />} disabled={salvando} onClick={() => salvar('outro')}>
               Salvar e criar outro
             </Button>
           )}
           <Button id="btn-admin-salvar" variant="gold" size="sm" icon={<Save className="w-3.5 h-3.5" />} loading={salvando} onClick={() => salvar()}>
             {!idAtual && filhos.length > 0 ? `Salvar e cadastrar ${filhos.map((f) => f.rotulo.toLowerCase()).join(' e ')}` : 'Salvar'}
           </Button>
-        </div>
-      </div>
-
-      {idAtual && filhos.map((f) => <SubLista key={f.id} entidade={f} esquema={esquema} paiId={idAtual} pai={valores} refs={refs} avisar={avisar} onMudou={() => setVersaoLigacoes((v) => v + 1)} />)}
-
-      {idAtual && onAbrir && ENTIDADES_COM_LIGACOES.includes(entidade.id) && (
-        <PainelLigacoes entidade={entidade.id} id={idAtual} versao={versaoLigacoes} onAbrir={(e, id) => sair(() => onAbrir(e, id))} />
+        </>
       )}
+
+      {idAtual && filhos.map(sublista)}
+
+      {ligacoes}
     </div>
   );
 
