@@ -300,9 +300,22 @@ export const ZONAS_TERRENO: ZonaTerreno[] = [
   { tipo: 'colina', reino: 'campos', cx: 1235, cy: 655, rx: 80, ry: 35, n: 8 },
 ];
 
-/** Rios decorativos (pontos por onde passam). */
+/**
+ * Rios decorativos, da nascente (primeiro ponto) à foz (último). Afinam na nascente e engrossam
+ * na foz; o último ponto fica um pouco dentro da água para o encontro ficar limpo.
+ */
 export const RIOS_ATLAS: Ponto[][] = [
-  [{ x: 560, y: 215 }, { x: 540, y: 300 }, { x: 590, y: 360 }, { x: 650, y: 420 }, { x: 724, y: 495 }],
-  [{ x: 1070, y: 330 }, { x: 1020, y: 380 }, { x: 990, y: 430 }],
-  [{ x: 760, y: 235 }, { x: 790, y: 320 }, { x: 760, y: 410 }],
+  // Frosthelm: desce das montanhas e entra no lago pelo oeste
+  [{ x: 560, y: 215 }, { x: 540, y: 300 }, { x: 590, y: 360 }, { x: 650, y: 420 }, { x: 700, y: 470 }, { x: 735, y: 496 }],
+  // Sylvanor: corre pela floresta até a margem norte
+  [{ x: 760, y: 235 }, { x: 790, y: 320 }, { x: 772, y: 380 }, { x: 778, y: 428 }],
+  // Drakos: nasce nas cordilheiras do leste e chega pela margem leste
+  [{ x: 1190, y: 345 }, { x: 1130, y: 380 }, { x: 1085, y: 430 }, { x: 1040, y: 470 }, { x: 990, y: 488 }],
+  // Valthera: desce das montanhas pelo sul do título e deságua no escoadouro (afluente do rio do lago)
+  [{ x: 625, y: 742 }, { x: 690, y: 726 }, { x: 760, y: 720 }, { x: 830, y: 708 }, { x: 879, y: 702 }],
+  // Escoadouro: sai do lago pelo sul e deságua no Mar Meridional
+  [{ x: 878, y: 590 }, { x: 893, y: 655 }, { x: 872, y: 725 }, { x: 905, y: 800 }, { x: 936, y: 872 }],
 ];
+
+/** Índices dos rios que saem do lago (engrossam a partir do lago, não da nascente). */
+export const RIOS_ESCOADOUROS = new Set([4]);

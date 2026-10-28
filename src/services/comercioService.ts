@@ -8,7 +8,8 @@ export const comercioService = {
   },
 
   async caravanas(): Promise<CaravanaMapa[]> {
-    const r = await requestApi<{ caravanas: CaravanaMapa[] }>('/api/mestre/comercio/caravanas');
+    // Pelo túnel a resposta pode demorar mais que o prazo padrão de 12 s
+    const r = await requestApi<{ caravanas: CaravanaMapa[] }>('/api/mestre/comercio/caravanas', { timeoutMs: 30000 });
     return r.caravanas ?? [];
   },
 

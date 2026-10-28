@@ -50,7 +50,7 @@ export interface GrupoLigacoes {
 }
 
 /** Entidades com painel de ligações no servidor. */
-export const ENTIDADES_COM_LIGACOES = ['itens', 'receitas', 'monstros'];
+export const ENTIDADES_COM_LIGACOES = ['itens', 'receitas', 'monstros', 'cidades'];
 
 export const adminService = {
   async ligacoes(entidade: string, id: string | number): Promise<GrupoLigacoes[]> {

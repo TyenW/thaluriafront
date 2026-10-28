@@ -221,3 +221,35 @@ export function suavizarAberto(pts: Ponto[]): string {
   }
   return d;
 }
+
+/**
+ * Curva por pontos médios: segue reta até o meio de cada segmento e contorna cada vértice com uma
+ * quadrática. Fica dentro do "corredor" da poligonal (não estufa como a Catmull-Rom), o que mantém
+ * estradas em terra e rotas marítimas na água. Devolve também a curva amostrada, para posicionar
+ * coisas exatamente sobre o traço desenhado.
+ */
+export function suavizarPorMedios(pts: Ponto[]): { d: string; amostras: Ponto[] } {
+  if (pts.length < 3) {
+    const d = pts.length === 2 ? `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}L${pts[1].x.toFixed(1)},${pts[1].y.toFixed(1)}` : '';
+    return { d, amostras: [...pts] };
+  }
+  const meio = (a: Ponto, b: Ponto): Ponto => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const f = (p: Ponto) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+  const amostras: Ponto[] = [pts[0]];
+  let inicio = meio(pts[0], pts[1]);
+  let d = `M${f(pts[0])}L${f(inicio)}`;
+  amostras.push(inicio);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const ctrl = pts[i];
+    const fim = i === pts.length - 2 ? pts[i + 1] : meio(pts[i], pts[i + 1]);
+    d += `Q${f(ctrl)} ${f(fim)}`;
+    const passos = Math.max(2, Math.ceil((distancia(inicio, ctrl) + distancia(ctrl, fim)) / 8));
+    for (let s = 1; s <= passos; s++) {
+      const t = s / passos;
+      const u = 1 - t;
+      amostras.push({ x: u * u * inicio.x + 2 * u * t * ctrl.x + t * t * fim.x, y: u * u * inicio.y + 2 * u * t * ctrl.y + t * t * fim.y });
+    }
+    inicio = fim;
+  }
+  return { d, amostras };
+}

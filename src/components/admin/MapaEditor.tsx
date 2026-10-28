@@ -75,6 +75,7 @@ export const MapaEditor: React.FC<MapaEditorProps> = ({ cidades, marcador, onEsc
         <path key={t.id} d={t.d} fill="none" stroke="#8a3b2a" strokeWidth={1} strokeDasharray="6 6" strokeOpacity={0.35} pointerEvents="none" />
       ))}
 
+      {tracado?.acessos && <path d={tracado.acessos} fill="none" stroke="#3a2a1a" strokeWidth={2} strokeDasharray="2 4" strokeLinecap="round" />}
       {tracado && (
         <path
           d={tracado.d}

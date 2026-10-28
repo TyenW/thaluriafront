@@ -1,11 +1,11 @@
 /**
  * Traçado de rotas sobre o mapa: estradas andam só por terra e rotas marítimas
  * só por água. Usa uma grade sobre o atlas e A* (8 vizinhos); o caminho é depois
- * simplificado (linha de visada dentro do mesmo meio) e suavizado.
+ * simplificado (linha de visada dentro do mesmo meio) e suavizado por pontos médios.
  */
 import { ALTURA_MAPA, LARGURA_MAPA } from '../../data/atlasThaluria';
 import { construirAtlas } from './construirAtlas';
-import { distancia, pontoNoPoligono, suavizarAberto, type Ponto } from './geometria';
+import { distancia, pontoNoPoligono, suavizarPorMedios, type Ponto } from './geometria';
 
 const CELULA = 6;
 const COLS = Math.ceil(LARGURA_MAPA / CELULA);
@@ -24,8 +24,13 @@ export interface TracadoRota {
   /** Não existe caminho pelo meio exigido (ex.: estrada até uma ilha). */
   impossivel: boolean;
   motivo?: string;
-  /** Pontos do caminho, de a até b (a curva desenhada passa perto deles). */
+  /** A curva desenhada, amostrada de a até b (caravanas andam exatamente sobre o traço). */
   pontos: Ponto[];
+  /**
+   * Rotas marítimas: trechos por terra da cidade até o cais (portos ficam um pouco para dentro).
+   * Desenhados como trilha; `d` fica só com a parte navegada.
+   */
+  acessos?: string;
 }
 
 interface Grade {
@@ -261,10 +266,42 @@ function simplificar(g: Grade, pts: Ponto[], meio: MeioRota): Ponto[] {
   return saida;
 }
 
+/** Divide segmentos longos: a curva por pontos médios corta cantos menores. */
+function densificar(pts: Ponto[], passo: number): Ponto[] {
+  const saida: Ponto[] = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const n = Math.max(1, Math.ceil(distancia(pts[i - 1], pts[i]) / passo));
+    for (let s = 1; s <= n; s++) saida.push({ x: pts[i - 1].x + ((pts[i].x - pts[i - 1].x) * s) / n, y: pts[i - 1].y + ((pts[i].y - pts[i - 1].y) * s) / n });
+  }
+  return saida;
+}
+
+/**
+ * Suaviza sem sair do meio: se a curva cortar terra (ou água) num canto, tenta de novo com a
+ * poligonal mais densa; no limite fica a própria poligonal, que já é válida.
+ * As pontas não entram na conferência: a cidade pode estar a poucos passos do meio exigido.
+ */
+function suavizarNoMeio(g: Grade, pts: Ponto[], meio: MeioRota): { d: string; amostras: Ponto[] } {
+  const valida = (amostras: Ponto[]) => amostras.every((p, i) => i === 0 || i === amostras.length - 1 || noMeio(g, celulaDe(p), meio));
+  for (const passo of [Infinity, 24, 10]) {
+    const curva = suavizarPorMedios(passo === Infinity ? pts : densificar(pts, passo));
+    if (valida(curva.amostras)) return curva;
+  }
+  const f = (p: Ponto) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+  return { d: pts.map((p, i) => `${i ? 'L' : 'M'}${f(p)}`).join(''), amostras: densificar(pts, 8) };
+}
+
 const cache = new Map<string, TracadoRota>();
 
 /** Traça uma rota entre dois pontos pelo meio indicado. Resultado em cache por coordenadas. */
 export function tracarRota(a: Ponto, b: Ponto, meio: MeioRota): TracadoRota {
+  // O A* não é simétrico: de A para B e de B para A sairiam caminhos diferentes, e uma caravana
+  // viajando no sentido oposto ao da estrada desenhada andava fora dela. Traça sempre num sentido
+  // fixo e, no outro, devolve os mesmos pontos ao contrário (o desenho é idêntico).
+  if (a.x > b.x || (a.x === b.x && a.y > b.y)) {
+    const t = tracarRota(b, a, meio);
+    return { ...t, pontos: [...t.pontos].reverse() };
+  }
   const chave = `${meio}|${a.x},${a.y}|${b.x},${b.y}`;
   const salvo = cache.get(chave);
   if (salvo) return salvo;
@@ -293,17 +330,31 @@ export function tracarRota(a: Ponto, b: Ponto, meio: MeioRota): TracadoRota {
       );
     } else {
       const pontos = simplificar(g, celulas.map(centro), meio);
-      const completo = [a, ...pontos, b];
+      let d: string;
+      let amostras: Ponto[];
+      let acessos: string | undefined;
+      if (meio === 'agua') {
+        // Navega da costa à costa; cidade → cais é por terra.
+        const mar = suavizarNoMeio(g, pontos.length > 1 ? pontos : [pontos[0], pontos[0]], meio);
+        const ini = pontos[0];
+        const fimMar = pontos[pontos.length - 1];
+        const f = (p: Ponto) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+        d = mar.d;
+        amostras = [a, ...mar.amostras, b];
+        const trechos = [distancia(a, ini) > 2 ? `M${f(a)}L${f(ini)}` : '', distancia(fimMar, b) > 2 ? `M${f(fimMar)}L${f(b)}` : ''].join('');
+        acessos = trechos || undefined;
+      } else {
+        ({ d, amostras } = suavizarNoMeio(g, [a, ...pontos, b], meio));
+      }
       let comprimento = 0;
-      for (let i = 1; i < completo.length; i++) comprimento += distancia(completo[i - 1], completo[i]);
-      resultado = { d: suavizarAberto(completo), comprimento, impossivel: false, pontos: completo };
+      for (let i = 1; i < amostras.length; i++) comprimento += distancia(amostras[i - 1], amostras[i]);
+      resultado = { d, comprimento, impossivel: false, pontos: amostras, acessos };
     }
   }
   cache.set(chave, resultado);
   return resultado;
 }
 
-/** Distância sugerida em km para uma rota, a partir do traçado. */
 /** Ponto a uma fração (0 a 1) do comprimento do traçado, e a direção nesse ponto (em graus). */
 export function pontoNoTracado(t: TracadoRota, fracao: number): { x: number; y: number; angulo: number } {
   const pts = t.pontos;
@@ -324,4 +375,5 @@ export function pontoNoTracado(t: TracadoRota, fracao: number): { x: number; y: 
   return { x: ult.x, y: ult.y, angulo: 0 };
 }
 
+/** Distância sugerida em km para uma rota, a partir do traçado. */
 export const distanciaKmSugerida = (t: TracadoRota) => Math.max(1, Math.round(t.comprimento * KM_POR_UNIDADE));

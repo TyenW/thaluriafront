@@ -5,14 +5,14 @@ import { distanciaKmSugerida } from '../map/tracadoRotas';
 import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
 import { CartaoMonstro } from '../bestiario/CartaoMonstro';
-import { FormularioRegistro, validarCampos, valoresPadrao } from './FormularioRegistro';
+import { FormularioRegistro, campoVisivel, validarCampos, valoresPadrao } from './FormularioRegistro';
 import { MapaEditor, avisosDePosicao, tracadoDaRota } from './MapaEditor';
 import { SubLista } from './SubLista';
 import { PainelLigacoes } from './PainelLigacoes';
 import { cidadesDoEditor, formatarCelula, monstroDoFormulario, numeroOuNulo, opcoesDe, tituloDe, type Avisar, type Referencias } from './registros';
 
 /** Entidades editadas em etapas (formulário longo demais para uma tela só). */
-const ENTIDADES_EM_ETAPAS = ['monstros'];
+const ENTIDADES_EM_ETAPAS = ['monstros', 'cidades'];
 
 interface Secao {
   id: string;
@@ -243,6 +243,10 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
       return n == null ? 'Carregando…' : n === 0 ? 'Nenhum cadastrado' : `${n} cadastrado${n === 1 ? '' : 's'}`;
     }
     if (x.tipo === 'ligacoes') return 'Onde aparece no mundo';
+    if (x.colunas.includes('mapa_x')) {
+      const onde = posicao ? `Posicionada (${Math.round(posicao.x)}, ${Math.round(posicao.y)})` : 'Sem posição no mapa';
+      return valores.tem_porto === true ? `${onde} · Possui porto` : onde;
+    }
     const partes = x.colunas
       .map((c) => entidade.campos.find((k) => k.coluna === c)!)
       .filter((c) => c.tipo !== 'IMAGEM' && c.tipo !== 'TEXTO_LONGO' && valores[c.coluna] != null && valores[c.coluna] !== '')
@@ -255,8 +259,40 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
           : `${/^[A-Z]{2,4}$/.test(c.rotulo) ? `${c.rotulo} ` : ''}${formatarCelula(entidade, c.coluna, valores[c.coluna], esquema, refs)}`
       )
       .filter(Boolean);
-    return partes.length ? partes.join(' · ') : 'Nada preenchido';
+    if (partes.length) return partes.join(' · ');
+    // Seção só de opções (ex.: "Cidade de fronteira" desmarcada): diz isso, não "nada preenchido"
+    const soOpcoes = x.colunas.every((c) => entidade.campos.find((k) => k.coluna === c)?.tipo === 'BOOLEANO' || !campoVisivel(entidade.campos.find((k) => k.coluna === c)!, valores));
+    return soOpcoes ? 'Nenhuma opção marcada' : 'Nada preenchido';
   };
+
+  // Mapa clicável para posicionar a cidade (formulário inteiro ou etapa "Posição no mapa")
+  const mapaCidade = (comTitulo: boolean) => (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {comTitulo ? (
+          <span className="flex items-center gap-1.5 text-xs font-cinzel font-bold text-amber-300 uppercase tracking-wider">
+            <MapPin className="w-4 h-4" /> Posição no mapa
+          </span>
+        ) : (
+          <span className="text-[11px] text-nevoa">Toque no mapa para posicionar a cidade.</span>
+        )}
+        <span className="text-[11px] font-mono text-nevoa">
+          {posicao ? `X ${posicao.x} · Y ${posicao.y}` : 'Sem posição: toque no mapa'}
+          {posicao && (
+            <button type="button" className="ml-2 text-red-300 hover:text-red-200 underline cursor-pointer" onClick={() => setValores((v) => ({ ...v, mapa_x: null, mapa_y: null }))}>
+              limpar
+            </button>
+          )}
+        </span>
+      </div>
+      <MapaEditor cidades={cidades.filter((c) => String(c.id) !== idAtual)} marcador={posicao} onEscolher={(p) => setValores((v) => ({ ...v, mapa_x: p.x, mapa_y: p.y }))} />
+      {avisosCidade.map((a) => (
+        <p key={a} className="flex items-start gap-1.5 text-[11px] text-amber-200">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {a}
+        </p>
+      ))}
+    </div>
+  );
 
   const formularioEmEtapas = () => {
     // Tela de seções (edição)
@@ -368,6 +404,8 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
 
         {secaoAtual.tipo === 'grupo' && (
           <>
+            {/* Etapa com posição (cidades): o mapa clicável no lugar dos campos X e Y */}
+            {secaoAtual.colunas.includes('mapa_x') && mapaCidade(false)}
             <FormularioRegistro
               entidade={entidade}
               valores={valores}
@@ -375,6 +413,7 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
               erros={tentou ? erros : {}}
               referencias={opcoes}
               grupos={[secaoAtual.grupo ?? null]}
+              ocultar={secaoAtual.colunas.includes('mapa_x') ? ['mapa_x', 'mapa_y'] : []}
               prefixoId={`admin-${entidade.id}`}
             />
             {secaoAtual === secoesCampos[0] && campoChave && (
@@ -459,29 +498,7 @@ export const ModalRegistro: React.FC<ModalRegistroProps> = ({ entidade, esquema,
         prefixoId={`admin-${entidade.id}`}
       />
 
-      {ehCidade && (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5 text-xs font-cinzel font-bold text-amber-300 uppercase tracking-wider">
-              <MapPin className="w-4 h-4" /> Posição no mapa
-            </span>
-            <span className="text-[11px] font-mono text-nevoa">
-              {posicao ? `X ${posicao.x} · Y ${posicao.y}` : 'Sem posição: toque no mapa'}
-              {posicao && (
-                <button type="button" className="ml-2 text-red-300 hover:text-red-200 underline cursor-pointer" onClick={() => setValores((v) => ({ ...v, mapa_x: null, mapa_y: null }))}>
-                  limpar
-                </button>
-              )}
-            </span>
-          </div>
-          <MapaEditor cidades={cidades.filter((c) => String(c.id) !== idAtual)} marcador={posicao} onEscolher={(p) => setValores((v) => ({ ...v, mapa_x: p.x, mapa_y: p.y }))} />
-          {avisosCidade.map((a) => (
-            <p key={a} className="flex items-start gap-1.5 text-[11px] text-amber-200">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {a}
-            </p>
-          ))}
-        </div>
-      )}
+      {ehCidade && mapaCidade(true)}
 
       {ehRota && (
         <div className="space-y-2">

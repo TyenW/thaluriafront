@@ -1,8 +1,10 @@
-import React from 'react';
-import { Eye, EyeOff, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Anchor, Droplets, Eye, EyeOff, Footprints, MapPin, Mountain, Pencil, Route, ScrollText, Ship, Store, Sun, X } from 'lucide-react';
 import type { TipoCidade } from '../../data/atlasThaluria';
 import { GlifoCidade } from './ornamentosMapa';
 import {
+  CARTAO_MAPA,
   FONTE_MAPA,
   FONTE_MAPA_SC,
   ROTULO_TIPO,
@@ -31,7 +33,8 @@ export const BotaoMapa: React.FC<{
     onPointerDown={(e) => e.stopPropagation()}
     className={`flex h-8 cursor-pointer items-center justify-center rounded border px-2 shadow transition-colors ${
       ativo
-        ? 'border-amber-600 bg-amber-400 text-tinta-escura font-bold shadow-amber-500/30'
+        ? // Etiqueta de couro escuro com filete de latão
+          'border-[#c5a059] bg-[#3a2a1a] text-[#f3e7c3] font-bold shadow-[inset_0_0_0_1px_rgba(197,160,89,0.35)]'
         : 'border-tinta/70 bg-papel/90 text-tinta hover:bg-papel-claro'
     }`}
   >
@@ -81,6 +84,21 @@ export const Legenda: React.FC = () => (
         </svg>
         Rota bloqueada / perigosa
       </li>
+      <li className="flex items-center gap-2">
+        <svg width="22" height="10" aria-hidden="true" className="shrink-0">
+          <line x1="0" y1="5" x2="22" y2="5" stroke="#8a3b2a" strokeWidth="1.4" strokeDasharray="6 3 1.5 3" />
+        </svg>
+        Fronteira de reino
+      </li>
+      <li className="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="-14 -14 28 28" aria-hidden="true" className="shrink-0">
+          <circle r={11} fill="#9a3412" stroke="#4a1208" strokeWidth={1} />
+          <text y={4} textAnchor="middle" fontSize={11} fontWeight={700} fill="#fbe7c4">
+            3
+          </text>
+        </svg>
+        Caravanas no mesmo ponto
+      </li>
       <li className="col-span-2 flex items-center gap-2 text-nevoa">
         <span className="inline-block h-3 w-3 shrink-0 rounded-sm border border-tinta-suave/60 bg-papel-nevoa" />
         Terra Incógnita — reino sob névoa
@@ -92,6 +110,10 @@ export const Legenda: React.FC = () => (
 export interface FichaCidadeProps {
   atual: CidadeResolvida;
   reino?: string;
+  /** Cor do reino (faixa do cabeçalho). */
+  corReino?: string;
+  /** É a cidade onde o personagem do jogador está. */
+  minhaCidade?: boolean;
   rotasDaCidade: RotaDaCidade[];
   mestre: boolean;
   podeAlterar: boolean;
@@ -102,9 +124,44 @@ export interface FichaCidadeProps {
   onAlterar: (nome: string, nivel: NivelVisibilidade) => void;
 }
 
+/** O que os jogadores enxergam em cada nível (explicado no controle do Mestre). */
+const EFEITO_VISIBILIDADE: Record<NivelVisibilidade, string> = {
+  OCULTO: 'Os jogadores não veem esta cidade nem as rotas que chegam nela.',
+  ROTA_E_NOME_APENAS: 'Veem o nome e as rotas, mas não a descrição, o clima nem as lojas.',
+  INFORMACOES_COMPLETAS: 'Veem tudo: descrição, clima, solo, água, lojas e rotas.',
+};
+
+const OPCOES_VISIBILIDADE: { nivel: NivelVisibilidade; rotulo: string; icone: React.ReactNode }[] = [
+  { nivel: 'OCULTO', rotulo: 'Oculta', icone: <EyeOff className="h-3.5 w-3.5" /> },
+  { nivel: 'ROTA_E_NOME_APENAS', rotulo: 'Só nome', icone: <ScrollText className="h-3.5 w-3.5" /> },
+  { nivel: 'INFORMACOES_COMPLETAS', rotulo: 'Revelada', icone: <Eye className="h-3.5 w-3.5" /> },
+];
+
+/** Km por dia de viagem: estimativa de mesa, só para dar noção ao grupo. */
+const KM_POR_DIA = { terra: 30, mar: 90 };
+
+const tempoDeViagem = (km: number, maritima: boolean) => {
+  const dias = km / (maritima ? KM_POR_DIA.mar : KM_POR_DIA.terra);
+  if (dias < 0.75) return `≈ ${Math.max(1, Math.round(dias * 24))} h`;
+  const d = Math.round(dias * 2) / 2;
+  return `≈ ${d.toLocaleString('pt-BR')} dia${d === 1 ? '' : 's'}`;
+};
+
+const Fato: React.FC<{ icone: React.ReactNode; rotulo: string; valor: string }> = ({ icone, rotulo, valor }) => (
+  <div className="flex min-w-0 flex-col items-center gap-0.5 rounded-md border border-tinta/15 bg-papel-claro/60 px-1.5 py-2 text-center">
+    <span className="text-tinta-suave">{icone}</span>
+    <span className="text-[10px] uppercase tracking-wider text-tinta-suave">{rotulo}</span>
+    <span className="w-full truncate text-sm font-semibold leading-tight" title={valor}>
+      {valor}
+    </span>
+  </div>
+);
+
 export const FichaCidade: React.FC<FichaCidadeProps> = ({
   atual,
   reino,
+  corReino,
+  minhaCidade,
   rotasDaCidade,
   mestre,
   podeAlterar,
@@ -116,139 +173,230 @@ export const FichaCidade: React.FC<FichaCidadeProps> = ({
 }) => {
   const { atlas: a, api, vis } = atual;
   const completa = vis === 'INFORMACOES_COMPLETAS';
-  const ocultaParaJogador = vis === 'OCULTO';
-  const niveis: NivelVisibilidade[] = ['OCULTO', 'ROTA_E_NOME_APENAS', 'INFORMACOES_COMPLETAS'];
+  // No celular a ficha abre pela metade para o mapa seguir à vista; um toque na alça expande.
+  const [expandida, setExpandida] = useState(false);
+  const rotas = [...rotasDaCidade].sort((x, y) => x.distanciaKm - y.distanciaKm);
+  const nomeReino = reino && a.reino !== 'ilhas' ? (a.reino === 'campos' ? reino : `Reino de ${reino}`) : a.reino === 'ilhas' ? 'Ilhas de Thalúria' : undefined;
+  const lojas = api?.lojasLista ?? [];
 
   return (
     <aside
-      className="fixed inset-x-0 bottom-0 z-40 max-h-[75vh] w-full overflow-y-auto rounded-t-2xl border-t-2 border-tinta bg-papel p-4 text-tinta shadow-2xl transition-transform sm:absolute sm:inset-auto sm:left-4 sm:top-4 sm:bottom-auto sm:max-h-[80%] sm:w-80 sm:rounded-lg sm:border sm:border-tinta/80 sm:bg-papel/95 sm:p-3.5"
+      aria-label={`Ficha de ${a.nome}`}
+      className={`fixed inset-x-0 bottom-0 z-40 flex w-full flex-col overflow-hidden rounded-t-2xl ${CARTAO_MAPA} transition-[max-height] duration-300 sm:absolute sm:inset-auto sm:bottom-auto sm:left-4 sm:top-4 sm:max-h-[calc(100%-2rem)] sm:w-[22rem] sm:rounded-xl ${
+        expandida ? 'max-h-[88vh]' : 'max-h-[58vh]'
+      }`}
       style={{ fontFamily: FONTE_MAPA }}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
     >
-      {/* Pill de arraste visual no mobile */}
-      <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-tinta/25 sm:hidden" />
+      {/* Faixa na cor do reino */}
+      <div className="h-1.5 shrink-0" style={{ background: corReino ?? '#8a6a3a' }} aria-hidden="true" />
 
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <h4 className="text-xl font-bold leading-tight" style={{ fontFamily: FONTE_MAPA_SC }}>
+      {/* Alça (celular): expande / recolhe */}
+      <button
+        type="button"
+        onClick={() => setExpandida((v) => !v)}
+        aria-label={expandida ? 'Recolher ficha' : 'Expandir ficha'}
+        aria-expanded={expandida}
+        className="mx-auto flex shrink-0 cursor-pointer items-center justify-center px-6 pt-2 pb-1 sm:hidden"
+      >
+        <span className="h-1.5 w-12 rounded-full bg-tinta/25" />
+      </button>
+
+      {/* Cabeçalho */}
+      <header className="flex shrink-0 items-start gap-3 border-b border-tinta/15 px-4 pb-3 pt-1 sm:pt-3">
+        <svg
+          width="46"
+          height="46"
+          viewBox="-13 -13 26 26"
+          aria-hidden="true"
+          className="shrink-0 rounded-full border-2 bg-papel-claro"
+          style={{ borderColor: corReino ?? '#8a6a3a' }}
+        >
+          <GlifoCidade tipo={a.tipo} parcial={vis === 'ROTA_E_NOME_APENAS'} />
+        </svg>
+        <div className="min-w-0 flex-1">
+          <h4 className="break-words text-xl font-bold leading-tight" style={{ fontFamily: FONTE_MAPA_SC }}>
             {a.nome}
           </h4>
           <p className="text-xs italic text-tinta-suave">
             {ROTULO_TIPO[a.tipo]}
-            {reino && a.reino !== 'ilhas' ? ` · ${a.reino === 'campos' ? reino : `Reino de ${reino}`}` : ''}
+            {nomeReino ? ` · ${nomeReino}` : ''}
           </p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {minhaCidade && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-sky-800/30 bg-sky-700/15 px-2 py-0.5 text-[10px] font-bold text-sky-900">
+                <MapPin className="h-3 w-3" /> Sua cidade
+              </span>
+            )}
+            {api?.temPorto && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-cyan-900/25 bg-cyan-800/10 px-2 py-0.5 text-[10px] font-bold text-cyan-900">
+                <Anchor className="h-3 w-3" /> Porto
+              </span>
+            )}
+            {mestre && (
+              <span
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                  vis === 'OCULTO'
+                    ? 'border-tinta-rubra/30 bg-tinta-rubra/10 text-tinta-rubra'
+                    : vis === 'ROTA_E_NOME_APENAS'
+                    ? 'border-amber-800/30 bg-amber-700/10 text-amber-900'
+                    : 'border-emerald-800/30 bg-emerald-700/10 text-emerald-900'
+                }`}
+                title="O que os jogadores enxergam"
+              >
+                {vis === 'OCULTO' ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />} Jogadores: {ROTULO_VISIBILIDADE[vis]}
+              </span>
+            )}
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onFechar}
-          aria-label="Fechar"
-          className="cursor-pointer rounded p-1 text-tinta-suave hover:bg-tinta/10"
-        >
+        <button type="button" onClick={onFechar} aria-label="Fechar" className="-mr-1 shrink-0 cursor-pointer rounded-md p-1.5 text-tinta-suave hover:bg-tinta/10">
           <X className="h-4 w-4" />
         </button>
+      </header>
+
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-3">
+        {/* Descrição e fatos */}
+        {completa && api?.descricao && <p className="whitespace-pre-line text-sm italic leading-relaxed text-tinta">{api.descricao}</p>}
+
+        {completa && api && (api.regiao || api.geologia || api.aquifero) && (
+          <div className="grid grid-cols-3 gap-1.5">
+            {api.regiao && <Fato icone={<Sun className="h-4 w-4" />} rotulo="Clima" valor={formatarEnum(api.regiao)} />}
+            {api.geologia && <Fato icone={<Mountain className="h-4 w-4" />} rotulo="Solo" valor={formatarEnum(api.geologia)} />}
+            {api.aquifero && <Fato icone={<Droplets className="h-4 w-4" />} rotulo="Água" valor={formatarEnum(api.aquifero)} />}
+          </div>
+        )}
+
+        {vis === 'ROTA_E_NOME_APENAS' && (
+          <p className="flex items-start gap-2 rounded-md border border-dashed border-tinta/30 px-3 py-2 text-xs italic text-tinta-suave">
+            <ScrollText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Só se conhecem o nome e os caminhos até aqui. O resto, só indo lá.
+          </p>
+        )}
+
+        {/* Lojas */}
+        {completa && typeof api?.lojas === 'number' && (
+          <section>
+            <h5 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-tinta-suave">
+              <Store className="h-3.5 w-3.5" /> Comércio ({api.lojas})
+            </h5>
+            {api.lojas === 0 ? (
+              <p className="text-xs italic text-tinta-suave">Nenhuma loja estabelecida.</p>
+            ) : lojas.length > 0 ? (
+              <ul className="space-y-1">
+                {lojas.map((l) => (
+                  <li key={l.id} className="flex items-baseline justify-between gap-2 border-b border-dotted border-tinta/20 pb-1 text-sm last:border-0">
+                    <span className="min-w-0 truncate">{l.nome}</span>
+                    <span className="shrink-0 text-[11px] italic text-tinta-suave">{l.tipo}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        )}
+
+        {/* Rotas */}
+        {rotas.length > 0 && (
+          <section>
+            <h5 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-tinta-suave">
+              <Route className="h-3.5 w-3.5" /> Caminhos ({rotas.length})
+            </h5>
+            <ul className="space-y-1">
+              {rotas.map((r) => {
+                const perigo = r.info?.perigo ?? (r.maritima ? 4 : 3);
+                const corP = getCorPerigo(perigo);
+                const bloqueada = !!r.info?.bloqueada;
+                const conteudo = (
+                  <>
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${r.maritima ? 'bg-cyan-900/10 text-cyan-900' : 'bg-tinta/10 text-tinta'}`}>
+                      {r.maritima ? <Ship className="h-3.5 w-3.5" /> : <Footprints className="h-3.5 w-3.5" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate font-semibold ${r.visivel ? '' : 'italic text-tinta-suave'}`}>{r.visivel ? r.destino : 'Destino desconhecido'}</span>
+                      <span className="block text-[11px] text-tinta-suave">
+                        {r.distanciaKm} km · {tempoDeViagem(r.distanciaKm, r.maritima)} {r.maritima ? 'de barco' : 'a pé'}
+                      </span>
+                    </span>
+                    {bloqueada ? (
+                      <span className="shrink-0 rounded border border-tinta-rubra/40 bg-tinta-rubra/10 px-1.5 py-0.5 text-[10px] font-bold text-tinta-rubra">Bloqueada</span>
+                    ) : (
+                      <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold ${corP.bg} ${corP.texto} ${corP.borda}`} title={`Perigo ${perigo}/10`}>
+                        {corP.rotulo}
+                      </span>
+                    )}
+                  </>
+                );
+                return (
+                  <li key={`${r.destino}-${r.maritima}`}>
+                    {r.visivel || mestre ? (
+                      <button
+                        type="button"
+                        onClick={() => onIr(r.destino)}
+                        className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-tinta/10"
+                      >
+                        {conteudo}
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2.5 px-1.5 py-1.5">{conteudo}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
+        {/* Mestre: o que os jogadores veem */}
+        {mestre && podeAlterar && (
+          <section>
+            <h5 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-tinta-suave">
+              <Eye className="h-3.5 w-3.5" /> Visão dos jogadores
+            </h5>
+            <div role="radiogroup" aria-label="Visão dos jogadores" className="grid grid-cols-3 gap-1 rounded-lg border border-tinta/25 bg-papel-claro/60 p-1">
+              {OPCOES_VISIBILIDADE.map((o) => {
+                const ativo = vis === o.nivel;
+                return (
+                  <button
+                    key={o.nivel}
+                    type="button"
+                    role="radio"
+                    aria-checked={ativo}
+                    disabled={salvando}
+                    onClick={() => !ativo && onAlterar(a.nome, o.nivel)}
+                    className={`flex cursor-pointer items-center justify-center gap-1 rounded-md px-1 py-1.5 text-xs font-semibold transition-colors disabled:cursor-wait ${
+                      ativo ? 'bg-tinta text-papel shadow' : 'text-tinta hover:bg-tinta/10'
+                    }`}
+                  >
+                    {o.icone}
+                    {o.rotulo}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-[11px] italic text-tinta-suave">{salvando ? 'Salvando…' : EFEITO_VISIBILIDADE[vis]}</p>
+            {erro && <p className="mt-1 text-xs text-tinta-rubra">{erro}</p>}
+          </section>
+        )}
       </div>
 
-      {mestre && ocultaParaJogador && (
-        <p className="mt-2 rounded bg-tinta/10 px-2 py-1 text-[11px] italic">Oculta para os jogadores.</p>
-      )}
-
-      {completa && api && (
-        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          {api.regiao && (
-            <>
-              <dt className="italic text-tinta-suave">Bioma</dt>
-              <dd>{formatarEnum(api.regiao)}</dd>
-            </>
-          )}
-          {api.geologia && (
-            <>
-              <dt className="italic text-tinta-suave">Solo</dt>
-              <dd>{formatarEnum(api.geologia)}</dd>
-            </>
-          )}
-          {api.aquifero && (
-            <>
-              <dt className="italic text-tinta-suave">Água</dt>
-              <dd>{formatarEnum(api.aquifero)}</dd>
-            </>
-          )}
-          {typeof api.lojas === 'number' && (
-            <>
-              <dt className="italic text-tinta-suave">Lojas</dt>
-              <dd>{api.lojas}</dd>
-            </>
-          )}
-        </dl>
-      )}
-      {vis === 'ROTA_E_NOME_APENAS' && (
-        <p className="mt-3 text-sm italic text-tinta-suave">Apenas o nome e as rotas desta cidade são conhecidos.</p>
-      )}
-      {completa && !api && (
-        <p className="mt-3 text-sm italic text-tinta-suave">Sem dados adicionais do servidor para este local.</p>
-      )}
-
-      {rotasDaCidade.length > 0 && (
-        <div className="mt-3 border-t border-tinta/25 pt-2">
-          <p className="mb-1 text-xs font-bold uppercase tracking-wider text-tinta-suave">
-            Rotas Conectadas ({rotasDaCidade.length})
-          </p>
-          <ul className="space-y-1 text-sm">
-            {rotasDaCidade.map((r) => {
-              const perigo = r.info?.perigo ?? (r.maritima ? 4 : 3);
-              const corP = getCorPerigo(perigo);
-              return (
-                <li key={`${r.destino}-${r.maritima}`}>
-                  <button
-                    type="button"
-                    onClick={() => onIr(r.destino)}
-                    className="flex w-full cursor-pointer items-center justify-between rounded px-1.5 py-1 text-left transition-colors hover:bg-tinta/10"
-                  >
-                    <div>
-                      <span className="font-semibold">{r.visivel ? r.destino : '??? Desconhecido'}</span>
-                      <span className="text-xs italic text-tinta-suave block">
-                        {r.maritima ? '⛵ por mar' : '🛣️ por terra'} · {r.distanciaKm} km
-                        {r.info?.bloqueada ? ' · bloqueada' : ''}
-                      </span>
-                    </div>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${corP.bg} ${corP.texto} border ${corP.borda}`}>
-                      Perigo {perigo}/10
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      {mestre && podeAlterar && (
-        <div className="mt-3 border-t border-tinta/25 pt-2">
-          <p className="mb-1.5 flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-tinta-suave">
-            {ocultaParaJogador ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            Visão dos jogadores
-          </p>
-          <div className="flex flex-col gap-1">
-            {niveis.map((n) => (
-              <button
-                key={n}
-                type="button"
-                disabled={salvando || vis === n}
-                onClick={() => onAlterar(a.nome, n)}
-                className={`cursor-pointer rounded border px-2 py-1 text-left text-xs transition-colors disabled:cursor-default ${
-                  vis === n
-                    ? 'border-tinta bg-tinta text-papel'
-                    : 'border-tinta/40 hover:bg-tinta/10 disabled:opacity-50'
-                }`}
-              >
-                {ROTULO_VISIBILIDADE[n]}
-              </button>
-            ))}
-          </div>
-          {erro && <p className="mt-1.5 text-xs text-tinta-rubra">{erro}</p>}
-        </div>
+      {/* Atalhos do Mestre */}
+      {mestre && api?.id != null && (
+        <footer className="flex shrink-0 gap-2 border-t border-tinta/15 bg-papel-claro/50 px-4 py-2.5">
+          <Link
+            to={`/mestre/gerenciar?entidade=cidades&abrir=${api.id}`}
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-tinta/40 px-2 py-1.5 text-xs font-semibold hover:bg-tinta/10"
+          >
+            <Pencil className="h-3.5 w-3.5" /> Editar cidade
+          </Link>
+          <Link
+            to="/mestre/comercio"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-tinta/40 px-2 py-1.5 text-xs font-semibold hover:bg-tinta/10"
+          >
+            <Store className="h-3.5 w-3.5" /> Comércio
+          </Link>
+        </footer>
       )}
     </aside>
   );
 };
-

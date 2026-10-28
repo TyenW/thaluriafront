@@ -15,6 +15,7 @@ export const MapaPage: React.FC = () => {
   const [cidades, setCidades] = useState<CidadeVisivel[]>([]);
   const [rotas, setRotas] = useState<RotaConexao[]>([]);
   const [caravanas, setCaravanas] = useState<CaravanaMapa[]>([]);
+  const [erroCaravanas, setErroCaravanas] = useState<string | null>(null);
   const [cidadeAtual, setCidadeAtual] = useState<string | undefined>(undefined);
   const [nomePersonagem, setNomePersonagem] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -29,8 +30,16 @@ export const MapaPage: React.FC = () => {
       setCidades(data.cidades ?? []);
       setRotas(data.rotas ?? []);
 
-      // Caravanas em viagem: só o Mestre vê (e o mapa continua se a rota falhar)
-      if (isMestre) setCaravanas(await comercioService.caravanas().catch(() => []));
+      // Caravanas em viagem: só o Mestre vê. O mapa continua se falhar, mas o motivo aparece
+      // (antes o erro era engolido e as caravanas sumiam sem explicação).
+      if (isMestre) {
+        try {
+          setCaravanas(await comercioService.caravanas());
+          setErroCaravanas(null);
+        } catch (e) {
+          setErroCaravanas(e instanceof Error ? e.message : 'falha desconhecida');
+        }
+      }
 
       // Busca a cidade atual do personagem do jogador
       if (usuario?.id) {
@@ -102,6 +111,15 @@ export const MapaPage: React.FC = () => {
       {erro && (
         <div role="alert" className="rounded border border-red-900/60 bg-red-950/30 px-3 py-2 font-sans-clean text-xs text-red-300">
           {erro} O mapa abaixo mostra apenas o que já foi carregado.
+        </div>
+      )}
+
+      {isMestre && erroCaravanas && (
+        <div role="alert" className="flex flex-wrap items-center gap-2 rounded border border-amber-700/60 bg-amber-950/30 px-3 py-2 font-sans-clean text-xs text-amber-200">
+          <span>As caravanas não puderam ser carregadas: {erroCaravanas}</span>
+          <button type="button" onClick={carregar} className="cursor-pointer font-cinzel text-amber-300 underline">
+            Tentar de novo
+          </button>
         </div>
       )}
 

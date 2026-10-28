@@ -52,6 +52,8 @@ export interface CidadeVisivel {
   geologia?: string;
   aquifero?: string;
   lojas?: number;
+  /** Lojas da cidade (só com informações completas). */
+  lojasLista?: { id: number; nome: string; tipo: string }[];
   /**
    * Só vem preenchido na visão do Mestre: o que os JOGADORES enxergam desta cidade.
    * (Para o Mestre, `visibilidade` é sempre INFORMACOES_COMPLETAS.)

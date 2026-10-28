@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   Compass,
@@ -26,6 +26,7 @@ import type { CidadeVisivel, RotaConexao } from '../../types/monstro';
 import { construirAtlas } from './construirAtlas';
 import { tracarRota } from './tracadoRotas';
 import {
+  CARTAO_MAPA,
   CENTROS_REINOS,
   FONTE_MAPA,
   FONTE_MAPA_SC,
@@ -35,9 +36,12 @@ import {
   TINTA,
   TINTA_SUAVE,
   TINTA_VERMELHA,
-  VISTA_INICIAL,
+  PROPORCAO_ATLAS,
   ZOOM_MAX,
   ajustarVista,
+  tamanhoVista,
+  vistaCentradaEm,
+  zoomMinimo,
   getCorPerigo,
   limitar,
   normalizar,
@@ -47,9 +51,9 @@ import {
   type RotaTracada,
   type Vista,
 } from './estiloMapa';
-import { BarraEscala, CamadaBase, GlifoCidade, RosaDosVentos, Titulo } from './ornamentosMapa';
+import { BarraEscala, CamadaBase, GlifoCidade, MarcadorSuaCidade, MolduraAtlas, RosaDosVentos, Titulo } from './ornamentosMapa';
 import { BotaoMapa, FichaCidade, Legenda } from './interfaceMapa';
-import { CamadaCaravanas, FichaCaravana } from './camadaCaravanas';
+import { CamadaCaravanas, FichaCaravana, ListaCaravanas } from './camadaCaravanas';
 import { posicionarCaravanas } from './posicaoCaravanas';
 import type { CaravanaMapa } from '../../types/comercio';
 
@@ -91,7 +95,16 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
   const [previewJogador, setPreviewJogador] = useState(false);
   const ehVisaoMestre = mestre && !previewJogador;
 
-  const [vista, setVista] = useState<Vista>(VISTA_INICIAL);
+  const [vista, setVista] = useState<Vista>({ x: 0, y: 0, k: 1 });
+  // Tamanho do mapa na tela: traços e textos são definidos em pixels de tela, não em unidades do atlas.
+  const [tela, setTela] = useState({ w: 0, h: 0 });
+  const proporcao = tela.w > 0 ? tela.h / tela.w : PROPORCAO_ATLAS;
+  // Os manipuladores de arraste/zoom leem a proporção mais recente sem serem recriados.
+  const proporcaoRef = useRef(proporcao);
+  useLayoutEffect(() => {
+    proporcaoRef.current = proporcao;
+  }, [proporcao]);
+  const kMin = zoomMinimo(proporcao);
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -100,6 +113,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
   const [rotaHover, setRotaHover] = useState<RotaHoverInfo | null>(null);
   const [mostrarCaravanas, setMostrarCaravanas] = useState(true);
   const [caravanaSel, setCaravanaSel] = useState<{ id: number; left: number; top: number } | null>(null);
+  const [grupoSel, setGrupoSel] = useState<{ ids: number[]; left: number; top: number } | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const vistaRef = useRef(vista);
@@ -109,6 +123,24 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
   const movido = useRef(false);
   const distPinch = useRef(0);
   const animacao = useRef<number | null>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const medir = () => setTela({ w: el.clientWidth, h: el.clientHeight });
+    medir();
+    const obs = new ResizeObserver(medir);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  /** Continente inteiro (ou, numa tela em pé, a altura inteira centrada). */
+  const visaoGeral = useCallback(() => vistaCentradaEm(LARGURA_MAPA / 2, ALTURA_MAPA / 2, zoomMinimo(proporcaoRef.current), proporcaoRef.current), []);
+
+  // Mudou a proporção (girar o celular, redimensionar): reenquadra; na vista geral, recentra.
+  useEffect(() => {
+    setVista((v) => (v.k <= zoomMinimo(proporcao) + 0.01 ? visaoGeral() : ajustarVista(v, proporcao)));
+  }, [proporcao, visaoGeral]);
 
   // Notifica pai quando preview muda
   useEffect(() => {
@@ -161,6 +193,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
         de: r.de,
         para: r.para,
         d: t.d,
+        acessos: t.acessos,
         // Estradas que saem de capitais são as vias principais do reino.
         principal: !maritima && (a.tipo === 'capital' || b.tipo === 'capital'),
         impossivel: t.impossivel,
@@ -315,7 +348,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
   const irPara = useCallback((alvo: Vista) => {
     cancelarAnimacao();
     const origem = vistaRef.current;
-    const destino = ajustarVista(alvo);
+    const destino = ajustarVista(alvo, proporcaoRef.current);
     const inicio = performance.now();
     const duracao = 380;
     const passo = (agora: number) => {
@@ -335,10 +368,13 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
 
   const zoomEm = useCallback((fx: number, fy: number, fator: number) => {
     const v = vistaRef.current;
-    const k = limitar(v.k * fator, 1, ZOOM_MAX);
-    const wx = v.x + fx * (LARGURA_MAPA / v.k);
-    const wy = v.y + fy * (ALTURA_MAPA / v.k);
-    setVista(ajustarVista({ k, x: wx - fx * (LARGURA_MAPA / k), y: wy - fy * (ALTURA_MAPA / k) }));
+    const prop = proporcaoRef.current;
+    const k = limitar(v.k * fator, zoomMinimo(prop), ZOOM_MAX);
+    const antes = tamanhoVista(v.k, prop);
+    const depois = tamanhoVista(k, prop);
+    const wx = v.x + fx * antes.w;
+    const wy = v.y + fy * antes.h;
+    setVista(ajustarVista({ k, x: wx - fx * depois.w, y: wy - fy * depois.h }, prop));
   }, []);
 
   useEffect(() => {
@@ -401,13 +437,8 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
     }
     ponteiros.current.set(e.pointerId, atual);
     const v = vistaRef.current;
-    setVista(
-      ajustarVista({
-        k: v.k,
-        x: v.x - (dx / r.width) * (LARGURA_MAPA / v.k),
-        y: v.y - (dy / r.height) * (ALTURA_MAPA / v.k),
-      }),
-    );
+    const { w, h } = tamanhoVista(v.k, proporcaoRef.current);
+    setVista(ajustarVista({ k: v.k, x: v.x - (dx / r.width) * w, y: v.y - (dy / r.height) * h }, proporcaoRef.current));
   };
 
   const aoSoltar = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -431,10 +462,23 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
     setSelecionada(nome);
     setErro(null);
     const c = resolvidaPorNome.get(nome);
-    if (focar && c) {
-      const k = Math.max(vistaRef.current.k, 2.6);
-      irPara({ k, x: c.atlas.x - LARGURA_MAPA / k / 2, y: c.atlas.y - ALTURA_MAPA / k / 2 });
-    }
+    if (!c) return;
+    const prop = proporcaoRef.current;
+    const celular = tela.w > 0 && tela.w < 640;
+    const v = vistaRef.current;
+    const { w } = tamanhoVista(v.k, prop);
+    const upx = tela.w > 0 ? w / tela.w : 1;
+    // Onde a cidade cai na tela agora (px): no desktop a ficha ocupa ~370px à esquerda.
+    const telaX = (c.atlas.x - v.x) / upx;
+    const escondidaPelaFicha = !celular && telaX < 380;
+    if (!focar && !celular && !escondidaPelaFicha) return;
+    const k = focar ? Math.max(v.k, 2.6, zoomMinimo(prop) * 1.4) : v.k;
+    const t = tamanhoVista(k, prop);
+    // Celular: cidade no terço de cima (a ficha cobre a parte de baixo). Desktop: à direita da ficha.
+    const deslocX = celular ? 0 : (185 * t.w) / (tela.w || 1);
+    const deslocY = celular ? t.h * 0.22 : 0;
+    irPara(vistaCentradaEm(c.atlas.x - deslocX, c.atlas.y + deslocY, k, prop));
+    if (celular) containerRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
 
   const aoClicarCidade = (nome: string) => {
@@ -446,12 +490,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
     setMenuReinosAberto(false);
     const alvo = CENTROS_REINOS[reinoId];
     if (!alvo) return;
-    const k = alvo.zoom;
-    irPara({
-      k,
-      x: alvo.x - LARGURA_MAPA / k / 2,
-      y: alvo.y - ALTURA_MAPA / k / 2,
-    });
+    irPara(vistaCentradaEm(alvo.x, alvo.y, Math.max(alvo.zoom, zoomMinimo(proporcaoRef.current)), proporcaoRef.current));
   };
 
   const alterarVisibilidade = async (nome: string, nivel: NivelVisibilidade) => {
@@ -568,21 +607,31 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
     return ehVisaoMestre ? lista : lista.filter((r) => r.visivel);
   }, [atual, estradasBase, maritimasBase, resolvidaPorNome, ehVisaoMestre, buscarRota, estimarDistancia]);
 
-  // --- Escalas dependentes do zoom ------------------------------------------
+  // --- Escalas: tudo em pixels de tela --------------------------------------
+  // u = unidades do atlas por pixel de tela. Traços, ícones e textos ficam com o mesmo tamanho na tela
+  // em qualquer aparelho, crescendo só um pouco ao aproximar (sensação de zoom).
   const k = vista.k;
-  const escalaGlifo = Math.pow(k, -0.62);
-  const escalaTexto = Math.pow(k, -0.55);
-  const opacidadeReinos = limitar(1.25 - (k - 1.3) * 0.55, 0.1, 1);
+  const { w: larguraVista, h: alturaVista } = tamanhoVista(k, proporcao);
+  const u = tela.w > 0 ? larguraVista / tela.w : larguraVista / 1000;
+  const crescimento = Math.min(1.4, Math.pow(k / kMin, 0.2));
+  const px = (n: number) => n * u * crescimento;
+  // Estradas engrossam mais que o texto ao aproximar (de perto, são o que importa).
+  const pxRota = (n: number) => n * u * Math.min(2, Math.pow(k / kMin, 0.38));
+  const escalaGlifo = 1.15 * u * crescimento;
+  const escalaTexto = 0.78 * u * crescimento;
+  // Nomes dos reinos somem ao aproximar (aí valem os das cidades).
+  const opacidadeReinos = limitar(1.2 - (k / kMin - 1.3) * 0.6, 0, 1);
 
-  const viewBox = `${vista.x.toFixed(2)} ${vista.y.toFixed(2)} ${(LARGURA_MAPA / k).toFixed(2)} ${(ALTURA_MAPA / k).toFixed(2)}`;
+  const viewBox = `${vista.x.toFixed(2)} ${vista.y.toFixed(2)} ${larguraVista.toFixed(2)} ${alturaVista.toFixed(2)}`;
 
   const idClip = `${idBase}-clip`;
   const idHachura = `${idBase}-hachura`;
   const idPapel = `${idBase}-papel`;
 
-  const posRotulo = (c: CidadeAtlas, s: number) => {
+  type PosicaoRotulo = NonNullable<CidadeAtlas['rotulo']>;
+  const posRotulo = (c: CidadeAtlas, s: number, onde: PosicaoRotulo = c.rotulo ?? 'direita') => {
     const folga = (c.tipo === 'capital' ? 14 : 10) * s;
-    switch (c.rotulo ?? 'direita') {
+    switch (onde) {
       case 'esquerda':
         return { x: -folga, y: 4 * s, anchor: 'end' as const };
       case 'abaixo':
@@ -596,10 +645,53 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
 
   const corPerigoHover = rotaHover ? getCorPerigo(rotaHover.perigo) : null;
 
+  // Rótulos das cidades sem sobreposição: por prioridade (selecionada, a sua, capitais, cidades,
+  // vilas), cada um tenta a posição preferida e depois as outras; quem não cabe aparece ao aproximar.
+  const rotulos = (() => {
+    const res = new Map<string, { x: number; y: number; anchor: 'start' | 'end' | 'middle' }>();
+    // dono: o ícone de uma cidade não bloqueia o próprio rótulo, que fica encostado nele.
+    const caixas: { x0: number; y0: number; x1: number; y1: number; dono?: string }[] = [];
+    const sobrepoe = (b: (typeof caixas)[number], dono: string) =>
+      caixas.some((c) => c.dono !== dono && b.x0 < c.x1 && b.x1 > c.x0 && b.y0 < c.y1 && b.y1 > c.y0);
+    const desenhadas = cidadesResolvidas.filter((c) => c.vis !== 'OCULTO' || ehVisaoMestre);
+    for (const c of desenhadas) {
+      const r = 7 * escalaGlifo * (c.atlas.tipo === 'capital' ? 1.3 : 1);
+      caixas.push({ x0: c.atlas.x - r, y0: c.atlas.y - r, x1: c.atlas.x + r, y1: c.atlas.y + r, dono: c.atlas.nome });
+      if (cidadeAtual && normalizar(c.atlas.nome) === normalizar(cidadeAtual)) {
+        // Fita "Sua cidade" abaixo do ícone: os rótulos vizinhos desviam dela
+        caixas.push({ x0: c.atlas.x - 30 * escalaGlifo, x1: c.atlas.x + 30 * escalaGlifo, y0: c.atlas.y + 15 * escalaGlifo, y1: c.atlas.y + 29 * escalaGlifo });
+      }
+    }
+    const ehMinha = (nome: string) => !!cidadeAtual && normalizar(nome) === normalizar(cidadeAtual);
+    const prioridade = (c: CidadeResolvida) =>
+      c.atlas.nome === selecionada ? 0 : ehMinha(c.atlas.nome) ? 1 : c.atlas.tipo === 'capital' ? 2 : c.atlas.tipo === 'vila' ? 4 : 3;
+    for (const c of [...desenhadas].sort((a, b) => prioridade(a) - prioridade(b))) {
+      const obrigatorio = prioridade(c) <= 1;
+      if (!obrigatorio && c.atlas.tipo === 'vila' && k < kMin * 1.5) continue;
+      const fs = (c.atlas.tipo === 'capital' ? 21 : 15.5) * escalaTexto;
+      const largura = c.atlas.nome.length * fs * 0.56;
+      const tentativas = [...new Set<PosicaoRotulo>([c.atlas.rotulo ?? 'direita', 'direita', 'esquerda', 'acima', 'abaixo'])];
+      let escolhida: ReturnType<typeof posRotulo> | null = null;
+      for (const onde of tentativas) {
+        const pos = posRotulo(c.atlas, escalaTexto, onde);
+        const x0 = c.atlas.x + pos.x - (pos.anchor === 'end' ? largura : pos.anchor === 'middle' ? largura / 2 : 0);
+        const caixa = { x0, x1: x0 + largura, y0: c.atlas.y + pos.y - fs * 0.85, y1: c.atlas.y + pos.y + fs * 0.25 };
+        if (!sobrepoe(caixa, c.atlas.nome)) {
+          escolhida = pos;
+          caixas.push(caixa);
+          break;
+        }
+      }
+      if (!escolhida && obrigatorio) escolhida = posRotulo(c.atlas, escalaTexto);
+      if (escolhida) res.set(c.atlas.nome, escolhida);
+    }
+    return res;
+  })();
+
   return (
     <div className="space-y-4">
       {/* Container principal do pergaminho */}
-      <div className="relative aspect-[3/2] w-full select-none overflow-hidden rounded-lg bg-[#d9c593] shadow-2xl">
+      <div className="relative aspect-[4/5] sm:aspect-[3/2] w-full select-none overflow-hidden rounded-lg bg-[#d9c593] shadow-2xl">
         {/* Textura de fundo e manchas de tinta */}
         <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
           <defs>
@@ -636,7 +728,8 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
         {/* Camada interativa */}
         <div
           ref={containerRef}
-          className="absolute inset-0 cursor-grab touch-none overflow-hidden rounded-sm active:cursor-grabbing"
+          // scroll-mt: ao rolar até o mapa (celular), o topo não fica sob o cabeçalho fixo do site
+          className="absolute inset-0 scroll-mt-24 cursor-grab touch-none overflow-hidden rounded-sm active:cursor-grabbing"
           onPointerDown={aoPressionar}
           onPointerMove={aoMover}
           onPointerUp={aoSoltar}
@@ -681,127 +774,6 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
               })}
             </g>
 
-            {/* Rotas marítimas */}
-            <g fill="none">
-              {rotasMaritimasRenderizadas.map((r) => {
-                const isHovered = rotaHover?.de === r.de && rotaHover?.para === r.para;
-                return (
-                  <g key={r.chave}>
-                    {r.impossivel && <title>{`Rota inválida: ${r.motivo}`}</title>}
-                    {/* Halo claro: separa a rota da água e da hachura do mar */}
-                    <path
-                      d={r.d}
-                      stroke="#f3e7c3"
-                      strokeWidth={5.2}
-                      strokeOpacity={0.55}
-                      strokeLinecap="round"
-                    />
-                    {/* Linha visível da rota marítima */}
-                    <path
-                      d={r.d}
-                      stroke={r.impossivel ? TINTA_VERMELHA : !r.visivelJog && ehVisaoMestre ? '#5f7a8c' : '#1f4f6b'}
-                      strokeWidth={2.2}
-                      strokeDasharray={r.impossivel ? '1 7' : !r.visivelJog && ehVisaoMestre ? '2 6' : '7 5'}
-                      strokeLinecap="round"
-                      strokeOpacity={!r.visivelJog && ehVisaoMestre ? 0.55 : 0.95}
-                      filter={isHovered ? 'drop-shadow(0 0 6px rgba(212,175,55,0.95))' : undefined}
-                    />
-                    {/* Hit-area invisível ampla para hover fácil e toque */}
-                    <path
-                      d={r.d}
-                      stroke="transparent"
-                      strokeWidth={24}
-                      strokeLinecap="round"
-                      style={{ cursor: 'pointer' }}
-                      onPointerEnter={(e) => aoEntrarRota(r.de, r.para, true, false, r.visivelJog, e)}
-                      onPointerMove={aoMoverRota}
-                      onPointerLeave={aoSairRota}
-                      onClick={() => aoClicarRota(r.de, r.para)}
-                    />
-                  </g>
-                );
-              })}
-            </g>
-
-            {/* Estradas terrestres */}
-            <g fill="none" strokeLinecap="round">
-              {estradasRenderizadas.map((e) => {
-                const isHovered = rotaHover?.de === e.de && rotaHover?.para === e.para;
-                const perigosa = (e.info?.perigo ?? 0) >= 7;
-                const bloqueada = !!e.info?.bloqueada;
-                return (
-                  <g key={e.chave}>
-                    {e.impossivel && <title>{`Rota inválida: ${e.motivo}`}</title>}
-                    {/* Halo de contraste sob a estrada para legibilidade perfeita */}
-                    <path
-                      d={e.d}
-                      stroke="#1b1208"
-                      strokeWidth={e.principal ? 5.6 : 4.2}
-                      strokeOpacity={0.38}
-                      strokeLinecap="round"
-                    />
-                    {/* Traço visível da estrada */}
-                    <path
-                      d={e.d}
-                      stroke={
-                        e.impossivel
-                          ? TINTA_VERMELHA
-                          : bloqueada
-                          ? TINTA_VERMELHA
-                          : perigosa
-                          ? '#9c4228'
-                          : e.principal
-                          ? '#261b10'
-                          : '#453220'
-                      }
-                      strokeWidth={e.principal ? 2.8 : 2.0}
-                      strokeDasharray={
-                        e.impossivel
-                          ? '1 7'
-                          : bloqueada
-                          ? '2 6'
-                          : !e.visivelJog && ehVisaoMestre
-                          ? '4 5'
-                          : e.principal
-                          ? undefined
-                          : '6 4'
-                      }
-                      strokeOpacity={!e.visivelJog && ehVisaoMestre ? 0.52 : 0.94}
-                      filter={isHovered ? 'drop-shadow(0 0 6px rgba(212,175,55,0.95))' : undefined}
-                    />
-                    {/* Hit-area invisível generosa para hover e clique responsivos */}
-                    <path
-                      d={e.d}
-                      stroke="transparent"
-                      strokeWidth={24}
-                      strokeLinecap="round"
-                      style={{ cursor: 'pointer' }}
-                      onPointerEnter={(ev) => aoEntrarRota(e.de, e.para, false, e.principal, e.visivelJog, ev)}
-                      onPointerMove={aoMoverRota}
-                      onPointerLeave={aoSairRota}
-                      onClick={() => aoClicarRota(e.de, e.para)}
-                    />
-                  </g>
-                );
-              })}
-            </g>
-
-            {/* Rótulos de mar */}
-            <g fill={TINTA_SUAVE} fontStyle="italic" textAnchor="middle" opacity={0.85} pointerEvents="none">
-              {ROTULOS_MAR.map((r) => (
-                <text
-                  key={r.texto}
-                  x={r.x}
-                  y={r.y}
-                  fontSize={r.tamanho ?? 20}
-                  letterSpacing={r.tamanho && r.tamanho > 18 ? 5 : 1.5}
-                  transform={r.rotacao ? `rotate(${r.rotacao} ${r.x} ${r.y})` : undefined}
-                >
-                  {r.texto}
-                </text>
-              ))}
-            </g>
-
             {/* Rótulos dos reinos */}
             <g pointerEvents="none" opacity={opacidadeReinos} style={{ transition: 'opacity 0.3s' }} textAnchor="middle">
               {REINOS.map((r) => {
@@ -823,10 +795,11 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                           fontSize={r.id === 'campos' ? 24 : 38}
                           letterSpacing={r.id === 'campos' ? 4 : 8}
                           fill={TINTA}
-                          fillOpacity={0.78}
-                          stroke={PAPEL_CLARO}
-                          strokeWidth={4}
-                          strokeOpacity={0.55}
+                          fillOpacity={0.45}
+                          stroke="#e9d9ab"
+                          strokeWidth={7}
+                          strokeOpacity={0.7}
+                          strokeLinejoin="round"
                           paintOrder="stroke"
                         >
                           {r.nome.toUpperCase()}
@@ -840,6 +813,101 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                   </g>
                 );
               })}
+            </g>
+
+
+            {/* Rotas: contornos de papel primeiro, traços depois (os cruzamentos se fundem limpos), áreas de toque por cima. */}
+            <g fill="none" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none">
+              {rotasMaritimasRenderizadas.map((r) => (
+                <path key={`c-${r.chave}`} d={r.d} stroke={PAPEL_CLARO} strokeWidth={pxRota(5)} strokeOpacity={0.7} />
+              ))}
+              {estradasRenderizadas.map((e) => (
+                <path key={`c-${e.chave}`} d={e.d} stroke={PAPEL_CLARO} strokeWidth={pxRota(e.principal ? 6 : 4.6)} strokeOpacity={0.85} />
+              ))}
+            </g>
+
+            <g fill="none" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none">
+              {/* Trilhas da cidade até o cais (portos ficam um pouco para dentro) */}
+              {rotasMaritimasRenderizadas.map((r) =>
+                r.acessos ? (
+                  <path key={`a-${r.chave}`} d={r.acessos} stroke={TINTA_SUAVE} strokeWidth={pxRota(1.2)} strokeDasharray={`${pxRota(1.5)} ${pxRota(2.5)}`} strokeOpacity={0.8} />
+                ) : null
+              )}
+              {rotasMaritimasRenderizadas.map((r) => {
+                const realce = rotaHover?.de === r.de && rotaHover?.para === r.para;
+                const soMestre = !r.visivelJog && ehVisaoMestre;
+                return (
+                  <path
+                    key={`t-${r.chave}`}
+                    d={r.d}
+                    stroke={r.impossivel ? TINTA_VERMELHA : realce ? '#b45309' : soMestre ? '#4f7187' : '#24506b'}
+                    strokeWidth={pxRota(realce ? 2.6 : 1.8)}
+                    strokeDasharray={r.impossivel ? `${pxRota(1)} ${pxRota(5)}` : `${pxRota(7)} ${pxRota(5)}`}
+                    strokeOpacity={soMestre ? 0.75 : 0.95}
+                  >
+                    {r.impossivel && <title>{`Rota inválida: ${r.motivo}`}</title>}
+                  </path>
+                );
+              })}
+              {estradasRenderizadas.map((e) => {
+                const realce = rotaHover?.de === e.de && rotaHover?.para === e.para;
+                const perigosa = (e.info?.perigo ?? 0) >= 7;
+                const bloqueada = !!e.info?.bloqueada;
+                const soMestre = !e.visivelJog && ehVisaoMestre;
+                // Oculta dos jogadores: mesmo desenho (a rede segue legível para o Mestre), em tinta mais apagada.
+                const cor = e.impossivel || bloqueada ? TINTA_VERMELHA : realce ? '#b45309' : perigosa ? '#9c4228' : soMestre ? '#5a4630' : e.principal ? '#2a1d10' : '#4a3622';
+                return (
+                  <path
+                    key={`t-${e.chave}`}
+                    d={e.d}
+                    stroke={cor}
+                    strokeWidth={pxRota(realce ? 3.2 : e.principal ? 2.4 : 1.9)}
+                    strokeDasharray={
+                      e.impossivel
+                        ? `${pxRota(1)} ${pxRota(5)}`
+                        : bloqueada
+                        ? `${pxRota(2)} ${pxRota(4)}`
+                        : e.principal
+                        ? undefined
+                        : `${pxRota(6)} ${pxRota(3.5)}`
+                    }
+                    strokeOpacity={soMestre ? 0.85 : 0.95}
+                  >
+                    {e.impossivel && <title>{`Rota inválida: ${e.motivo}`}</title>}
+                  </path>
+                );
+              })}
+            </g>
+
+            <g fill="none" stroke="transparent" strokeLinecap="round">
+              {[...rotasMaritimasRenderizadas.map((r) => ({ ...r, maritima: true })), ...estradasRenderizadas.map((e) => ({ ...e, maritima: false }))].map((r) => (
+                <path
+                  key={`h-${r.chave}`}
+                  d={r.d}
+                  strokeWidth={px(20)}
+                  style={{ cursor: 'pointer' }}
+                  onPointerEnter={(ev) => aoEntrarRota(r.de, r.para, r.maritima, r.principal, r.visivelJog, ev)}
+                  onPointerMove={aoMoverRota}
+                  onPointerLeave={aoSairRota}
+                  onClick={() => aoClicarRota(r.de, r.para)}
+                />
+              ))}
+            </g>
+
+            {/* Rótulos de mar */}
+            <g fill={TINTA_SUAVE} fontStyle="italic" textAnchor="middle" opacity={0.85} pointerEvents="none">
+              {ROTULOS_MAR.map((r) => (
+                <text
+                  key={r.texto}
+                  x={r.x}
+                  y={r.y}
+                  fontSize={r.tamanho ?? 20}
+                  letterSpacing={r.tamanho && r.tamanho > 18 ? 5 : 1.5}
+                  transform={r.rotacao ? `rotate(${r.rotacao} ${r.x} ${r.y})` : undefined}
+                >
+                  {r.texto}
+                </text>
+              ))}
             </g>
 
             {/* Decorações fixas do mapa */}
@@ -856,8 +924,8 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                 const ativa = selecionada === c.atlas.nome;
                 const isMinhaCidade = cidadeAtual && normalizar(c.atlas.nome) === normalizar(cidadeAtual);
                 const { atlas: a } = c;
-                const mostrarNome = (!oculta || ehVisaoMestre) && (a.tipo !== 'vila' || k >= 1.5);
-                const rot = posRotulo(a, escalaTexto);
+                const rot = rotulos.get(a.nome);
+                const mostrarNome = !!rot;
                 const capital = a.tipo === 'capital';
                 return (
                   <g
@@ -868,7 +936,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                     aria-label={`${oculta ? 'Cidade oculta' : a.nome}, ${ROTULO_TIPO[a.tipo]}`}
                     aria-pressed={ativa}
                     style={{ cursor: 'pointer', outline: 'none' }}
-                    opacity={oculta ? (ehVisaoMestre ? 0.45 : 0) : 1}
+                    opacity={oculta ? (ehVisaoMestre ? 0.7 : 0) : 1}
                     onClick={() => aoClicarCidade(a.nome)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -877,34 +945,11 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                       }
                     }}
                   >
-                    {/* Área de clique generosa */}
-                    <circle r={18 * escalaGlifo} fill="transparent" />
+                    {/* Área de toque de ~22px em qualquer tela */}
+                    <circle r={Math.max(18 * escalaGlifo, px(14))} fill="transparent" />
 
-                    {/* Farol / Indicador de Cidade Atual do Jogador */}
-                    {isMinhaCidade && (
-                      <g pointerEvents="none">
-                        <circle
-                          r={24 * escalaGlifo}
-                          fill="none"
-                          stroke="#0284c7"
-                          strokeWidth={2.4 * escalaGlifo}
-                        >
-                          <animate
-                            attributeName="r"
-                            values={`${16 * escalaGlifo};${26 * escalaGlifo};${16 * escalaGlifo}`}
-                            dur="2.4s"
-                            repeatCount="indefinite"
-                          />
-                          <animate
-                            attributeName="opacity"
-                            values="0.9;0.2;0.9"
-                            dur="2.4s"
-                            repeatCount="indefinite"
-                          />
-                        </circle>
-                        <circle r={6 * escalaGlifo} fill="#0284c7" fillOpacity={0.4} />
-                      </g>
-                    )}
+                    {/* Sua cidade: coroa de louros, bandeirola e fita de pergaminho */}
+                    {isMinhaCidade && <MarcadorSuaCidade escala={escalaGlifo} />}
 
                     {/* Indicador de Cidade Selecionada */}
                     {ativa && (
@@ -920,31 +965,16 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                     {/* Glifo representativo da cidade */}
                     <g transform={`scale(${(capital ? 1.25 : 1) * escalaGlifo})`}>
                       {oculta ? (
-                        <circle r={3.5} fill="none" stroke={TINTA} strokeWidth={1} strokeDasharray="2 2" />
+                        // Mestre vendo cidade que o jogador ainda não conhece: o ícone real, só tracejado
+                        <GlifoCidade tipo={a.tipo} parcial />
                       ) : (
                         <GlifoCidade tipo={a.tipo} parcial={parcial} />
                       )}
                     </g>
 
                     {/* Rótulo da cidade */}
-                    {mostrarNome && (
+                    {mostrarNome && rot && (
                       <g>
-                        {isMinhaCidade && (
-                          <text
-                            x={rot.x}
-                            y={rot.y - 14 * escalaTexto}
-                            textAnchor={rot.anchor}
-                            fontSize={11 * escalaTexto}
-                            fontWeight={700}
-                            fill="#0369a1"
-                            stroke={PAPEL_CLARO}
-                            strokeWidth={2.5 * escalaTexto}
-                            paintOrder="stroke"
-                            pointerEvents="none"
-                          >
-                            📍 Sua Cidade
-                          </text>
-                        )}
                         <text
                           x={rot.x}
                           y={rot.y}
@@ -954,8 +984,8 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
                           fontWeight={capital ? 700 : 400}
                           fill={TINTA}
                           stroke={PAPEL_CLARO}
-                          strokeWidth={3.2 * escalaTexto}
-                          strokeOpacity={0.88}
+                          strokeWidth={4 * escalaTexto}
+                          strokeOpacity={0.95}
                           paintOrder="stroke"
                           strokeLinejoin="round"
                           pointerEvents="none"
@@ -972,22 +1002,42 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
             {mestre && !previewJogador && mostrarCaravanas && caravanasNoMapa.length > 0 && (
               <CamadaCaravanas
                 posicionadas={caravanasNoMapa}
-                escala={escalaTexto}
+                escala={0.85 * u * crescimento}
+                unidadesPorPixel={u}
+                cidades={cidadesBase}
                 selecionadaId={caravanaSel?.id ?? null}
                 onSelecionar={(id, e) => {
                   if (movido.current) return;
                   const rect = containerRef.current?.getBoundingClientRect();
                   if (!rect) return;
+                  setGrupoSel(null);
                   setCaravanaSel((atual) => (atual?.id === id ? null : { id, left: e.clientX - rect.left, top: e.clientY - rect.top - 16 }));
+                }}
+                onSelecionarGrupo={(ids, e) => {
+                  if (movido.current) return;
+                  const rect = containerRef.current?.getBoundingClientRect();
+                  if (!rect) return;
+                  setCaravanaSel(null);
+                  setGrupoSel({ ids, left: e.clientX - rect.left, top: e.clientY - rect.top - 16 });
                 }}
               />
             )}
           </svg>
         </div>
 
-        {/* Moldura de tinta clássica */}
-        <div className="pointer-events-none absolute inset-0 rounded-sm border-[3px] border-tinta/80" />
-        <div className="pointer-events-none absolute inset-[7px] rounded-[1px] border border-tinta/60" />
+        {/* Vinheta: o papel escurece junto à moldura, mais nos cantos (documento manuseado) */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden="true"
+          style={{
+            boxShadow: 'inset 0 0 70px rgba(60, 40, 20, 0.25), inset 0 0 16px rgba(60, 40, 20, 0.22)',
+            background:
+              'radial-gradient(circle at 0 0, rgba(60,40,20,0.22), transparent 18%), radial-gradient(circle at 100% 0, rgba(60,40,20,0.22), transparent 18%), radial-gradient(circle at 0 100%, rgba(60,40,20,0.22), transparent 18%), radial-gradient(circle at 100% 100%, rgba(60,40,20,0.22), transparent 18%)',
+          }}
+        />
+
+        {/* Moldura de atlas: filete duplo, graduação alternada e cantoneiras */}
+        <MolduraAtlas largura={tela.w} altura={tela.h} />
 
         {/* Banner do Mestre quando em modo Pré-visualização de Jogador */}
         {mestre && previewJogador && (
@@ -1010,7 +1060,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
         {caravanaSel && mostrarCaravanas && (() => {
           const c = caravanas?.find((x) => x.id === caravanaSel.id);
           if (!c) return null;
-          const largura = containerRef.current?.clientWidth ?? 600;
+          const largura = tela.w || 600;
           return (
             <FichaCaravana
               caravana={c}
@@ -1021,12 +1071,26 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
           );
         })()}
 
+        {/* Lista de caravanas agrupadas no mesmo ponto */}
+        {grupoSel && mostrarCaravanas && caravanas && (
+          <ListaCaravanas
+            caravanas={caravanas.filter((c) => grupoSel.ids.includes(c.id))}
+            left={limitar(grupoSel.left, 150, (tela.w || 600) - 150)}
+            top={Math.max(200, grupoSel.top)}
+            onEscolher={(id) => {
+              setCaravanaSel({ id, left: grupoSel.left, top: grupoSel.top });
+              setGrupoSel(null);
+            }}
+            onFechar={() => setGrupoSel(null)}
+          />
+        )}
+
         {/* Tooltip interativo flutuante da rota em hover */}
         {rotaHover && (
           <div
-            className="pointer-events-none absolute z-30 max-w-xs -translate-x-1/2 -translate-y-full rounded-lg border border-tinta/80 bg-papel-claro/95 px-3 py-2 text-tinta-escura shadow-2xl backdrop-blur-sm"
+            className={`pointer-events-none absolute z-30 max-w-xs -translate-x-1/2 -translate-y-full rounded-lg px-3 py-2 ${CARTAO_MAPA}`}
             style={{
-              left: limitar(rotaHover.screenX, 110, (containerRef.current?.clientWidth ?? 600) - 110),
+              left: limitar(rotaHover.screenX, 110, (tela.w || 600) - 110),
               top: Math.max(16, rotaHover.screenY - 14),
               fontFamily: FONTE_MAPA,
             }}
@@ -1105,7 +1169,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
 
             {menuReinosAberto && (
               <div
-                className="absolute right-0 top-9 z-30 w-48 rounded-lg border border-tinta/80 bg-papel-claro p-1.5 shadow-2xl backdrop-blur-sm"
+                className={`absolute right-0 top-9 z-30 w-48 rounded-lg p-1.5 ${CARTAO_MAPA}`}
                 style={{ fontFamily: FONTE_MAPA }}
                 onPointerDown={(e) => e.stopPropagation()}
               >
@@ -1144,6 +1208,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
               onClick={() => {
                 setMostrarCaravanas((v) => !v);
                 setCaravanaSel(null);
+                setGrupoSel(null);
               }}
               ativo={mostrarCaravanas}
             >
@@ -1182,7 +1247,7 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
               rotulo="Visão Geral (Continente Inteiro)"
               onClick={() => {
                 setSelecionada(null);
-                irPara(VISTA_INICIAL);
+                irPara(visaoGeral());
               }}
             >
               <Locate className="h-3.5 w-3.5" />
@@ -1193,15 +1258,11 @@ export const MapaThaluria: React.FC<MapaThaluriaProps> = ({
         {/* Ficha da cidade (Drawer responsivo) */}
         {atual && (
           <>
-            {/* Backdrop escuro no mobile para fechar facilmente */}
-            <div
-              className="fixed inset-0 m-0 z-30 bg-black/40 backdrop-blur-[2px] sm:hidden"
-              onClick={() => setSelecionada(null)}
-              aria-hidden="true"
-            />
             <FichaCidade
               atual={atual}
               reino={reinoAtual?.nome}
+              corReino={reinoAtual?.cor}
+              minhaCidade={!!cidadeAtual && normalizar(atual.atlas.nome) === normalizar(cidadeAtual)}
               rotasDaCidade={rotasDaCidade}
               mestre={ehVisaoMestre}
               salvando={salvando}

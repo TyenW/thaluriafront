@@ -12,6 +12,7 @@ import {
   LARGURA_MAPA,
   REINOS,
   RIOS_ATLAS,
+  RIOS_ESCOADOUROS,
   ROTAS_MARITIMAS_ATLAS,
   ZONAS_TERRENO,
   type IdReino,
@@ -27,7 +28,6 @@ import {
   distancia,
   hashTexto,
   pontoNoPoligono,
-  suavizarAberto,
   territorioDoPonto,
   tremer,
   tremerPoligono,
@@ -40,6 +40,10 @@ export interface SimboloTerreno {
   y: number;
   s: number;
   chave: string;
+  /** Florestas: copas do mesmo maciço se fundem num contorno só. */
+  grupo?: string;
+  /** Copa da borda de baixo do maciço: só ela mostra tronco. */
+  base?: boolean;
 }
 
 export interface EstradaDesenhada {
@@ -68,6 +72,8 @@ export interface AtlasConstruido {
   lago: string;
   ilhas: { id: string; d: string }[];
   territorios: TerritorioDesenhado[];
+  /** Fronteiras entre reinos, cada trecho uma única vez (o traço-ponto não se embaralha). */
+  fronteiras: string;
   simbolos: SimboloTerreno[];
   estradas: EstradaDesenhada[];
   rotasMaritimas: RotaMaritimaDesenhada[];
@@ -99,6 +105,47 @@ const TAMANHO: Record<TipoTerreno, [number, number]> = {
   capim: [4, 6],
 };
 
+/** Arredonda uma poligonal aberta (cortes de Chaikin), mantendo as pontas. */
+function suavizarChaikin(pts: Ponto[], vezes: number): Ponto[] {
+  let atual = pts;
+  for (let v = 0; v < vezes; v++) {
+    const prox: Ponto[] = [atual[0]];
+    for (let i = 0; i < atual.length - 1; i++) {
+      const a = atual[i];
+      const b = atual[i + 1];
+      prox.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 }, { x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 });
+    }
+    prox.push(atual[atual.length - 1]);
+    atual = prox;
+  }
+  return atual;
+}
+
+/** Contorno de um rio que vai de `larguras[0]` (nascente) a `larguras[1]` (foz), em unidades do mapa. */
+function rioAfunilado(pts: Ponto[], [w0, w1]: [number, number]): string {
+  const acumulado = [0];
+  for (let i = 1; i < pts.length; i++) acumulado.push(acumulado[i - 1] + distancia(pts[i - 1], pts[i]));
+  const total = acumulado[acumulado.length - 1] || 1;
+  const esq: Ponto[] = [];
+  const dir: Ponto[] = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i - 1)];
+    const b = pts[Math.min(pts.length - 1, i + 1)];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const comp = Math.hypot(dx, dy) || 1;
+    const t = acumulado[i] / total;
+    // Engrossa devagar no começo e mais perto da foz, como um rio que recebe afluentes.
+    const meia = (w0 + (w1 - w0) * Math.pow(t, 1.4)) / 2;
+    const nx = (-dy / comp) * meia;
+    const ny = (dx / comp) * meia;
+    esq.push({ x: pts[i].x + nx, y: pts[i].y + ny });
+    dir.push({ x: pts[i].x - nx, y: pts[i].y - ny });
+  }
+  const f = (p: Ponto) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+  return `M${f(pts[0])}` + esq.map((p) => `L${f(p)}`).join('') + dir.reverse().map((p) => `L${f(p)}`).join('') + 'Z';
+}
+
 export function construirAtlas(): AtlasConstruido {
   if (cache) return cache;
 
@@ -117,10 +164,35 @@ export function construirAtlas(): AtlasConstruido {
   // --- Territórios ----------------------------------------------------------
   const sementes = REINOS.map((r) => r.semente);
   const celulas = celulasTerritorio(sementes, LARGURA_MAPA, ALTURA_MAPA);
-  const territorios: TerritorioDesenhado[] = REINOS.map((r) => {
-    const pts = tremerPoligono(celulas[r.id], 4, 0.09);
-    return { id: r.id, d: caminhoPoligono(pts) };
-  });
+  const pontosTerritorios = REINOS.map((r) => tremerPoligono(celulas[r.id], 4, 0.09));
+  const territorios: TerritorioDesenhado[] = REINOS.map((r, i) => ({ id: r.id, d: caminhoPoligono(pontosTerritorios[i]) }));
+
+  // Cada borda é de dois reinos e sai idêntica nos dois polígonos (ver `tremer`): desenha-se
+  // uma vez só, em trechos contínuos, para o tracejado seguir certo ao longo da fronteira.
+  const chaveP = (p: Ponto) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+  const arestasVistas = new Set<string>();
+  const trechosFronteira: string[] = [];
+  for (const pts of pontosTerritorios) {
+    let atual: Ponto[] = [];
+    const fechar = () => {
+      if (atual.length > 1) trechosFronteira.push(atual.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(''));
+      atual = [];
+    };
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % pts.length];
+      const k = [chaveP(a), chaveP(b)].sort().join('|');
+      if (arestasVistas.has(k)) {
+        fechar();
+        continue;
+      }
+      arestasVistas.add(k);
+      if (atual.length === 0) atual.push(a);
+      atual.push(b);
+    }
+    fechar();
+  }
+  const fronteiras = trechosFronteira.join('');
 
   // --- Símbolos de terreno --------------------------------------------------
   const centrosCidades = CIDADES_ATLAS.map((c) => ({ x: c.x, y: c.y }));
@@ -141,8 +213,56 @@ export function construirAtlas(): AtlasConstruido {
     return false;
   };
 
+  // Área dos títulos dos reinos fica sem símbolos, para o nome respirar (aproximação da caixa do texto).
+  const caixasTitulos = REINOS.map((r) => {
+    const campos = r.id === 'campos';
+    const largura = r.nome.length * (campos ? 21 : 35) + 30;
+    return { x0: r.rotulo.x - largura / 2, x1: r.rotulo.x + largura / 2, y0: r.rotulo.y - (campos ? 34 : 62), y1: r.rotulo.y + 12 };
+  });
+  const sobTitulo = (p: Ponto) => caixasTitulos.some((c) => p.x > c.x0 && p.x < c.x1 && p.y > c.y0 && p.y < c.y1);
+  const pontoValido = (p: Ponto, reino: string) =>
+    pontoNoPoligono(p, costa) &&
+    !pontoNoPoligono(p, lagoPts) &&
+    territorioDoPonto(p, sementes) === reino &&
+    !centrosCidades.some((c) => distancia(c, p) < 24) &&
+    !sobTitulo(p);
+  const registrar = (p: Ponto) => {
+    const k = `${Math.floor(p.x / TAM_CELULA)},${Math.floor(p.y / TAM_CELULA)}`;
+    const lista = grade.get(k) ?? [];
+    lista.push(p);
+    grade.set(k, lista);
+  };
+
   ZONAS_TERRENO.forEach((zona, zi) => {
     const rng = criarRng(hashTexto(`zona-${zi}-${zona.tipo}`));
+
+    // Florestas em maciços: 3 a 6 copas sobrepostas por grupo, com clareiras entre os grupos.
+    if (zona.tipo === 'floresta') {
+      const grupos = Math.max(2, Math.round(zona.n / 4));
+      let feitos = 0;
+      for (let tentativa = 0; feitos < grupos && tentativa < grupos * 40; tentativa++) {
+        const ang = rng() * Math.PI * 2;
+        const raio = Math.sqrt(rng());
+        const centro: Ponto = { x: zona.cx + Math.cos(ang) * zona.rx * raio, y: zona.cy + Math.sin(ang) * zona.ry * raio };
+        if (!pontoValido(centro, zona.reino) || vizinhoPerto(centro, 30)) continue;
+        const copas: SimboloTerreno[] = [];
+        const n = 3 + Math.floor(rng() * 4);
+        for (let i = 0; i < n * 3 && copas.length < n; i++) {
+          const q: Ponto = { x: centro.x + (rng() - 0.5) * 18, y: centro.y + (rng() - 0.5) * 11 };
+          if (!pontoValido(q, zona.reino)) continue;
+          const [smin, smax] = TAMANHO.floresta;
+          copas.push({ tipo: 'floresta', x: q.x, y: q.y, s: smin + rng() * (smax - smin), chave: `${zi}-${feitos}-${i}`, grupo: `${zi}-${feitos}` });
+        }
+        if (copas.length < 2) continue;
+        // Troncos só nas copas mais baixas do maciço (as que "encostam" no chão do desenho).
+        const fundo = Math.max(...copas.map((c) => c.y));
+        for (const c of copas) c.base = c.y > fundo - 4;
+        simbolos.push(...copas);
+        registrar(centro);
+        feitos++;
+      }
+      return;
+    }
     let colocados = 0;
     let tentativas = 0;
     while (colocados < zona.n && tentativas < zona.n * 40) {
@@ -151,10 +271,7 @@ export function construirAtlas(): AtlasConstruido {
       const raio = Math.sqrt(rng());
       const p: Ponto = { x: zona.cx + Math.cos(ang) * zona.rx * raio, y: zona.cy + Math.sin(ang) * zona.ry * raio };
 
-      if (!pontoNoPoligono(p, costa)) continue;
-      if (pontoNoPoligono(p, lagoPts)) continue;
-      if (territorioDoPonto(p, sementes) !== zona.reino) continue;
-      if (centrosCidades.some((c) => distancia(c, p) < 24)) continue;
+      if (!pontoValido(p, zona.reino)) continue;
       if (vizinhoPerto(p, ESPACAMENTO[zona.tipo])) continue;
 
       const [smin, smax] = TAMANHO[zona.tipo];
@@ -165,10 +282,7 @@ export function construirAtlas(): AtlasConstruido {
         s: smin + rng() * (smax - smin),
         chave: `${zi}-${colocados}`,
       });
-      const k = `${Math.floor(p.x / TAM_CELULA)},${Math.floor(p.y / TAM_CELULA)}`;
-      const lista = grade.get(k) ?? [];
-      lista.push(p);
-      grade.set(k, lista);
+      registrar(p);
       colocados++;
     }
   });
@@ -204,6 +318,7 @@ export function construirAtlas(): AtlasConstruido {
     });
   }
 
+  // Rios em bico de pena: forma afunilada (fina na nascente, larga na foz), não um traço uniforme.
   const rios = RIOS_ATLAS.map((pts, i) => {
     const densos: Ponto[] = [];
     for (let k = 0; k < pts.length - 1; k++) {
@@ -211,7 +326,7 @@ export function construirAtlas(): AtlasConstruido {
       densos.push(...seg.slice(0, -1));
     }
     densos.push(pts[pts.length - 1]);
-    return suavizarAberto(densos);
+    return rioAfunilado(suavizarChaikin(densos, 2), RIOS_ESCOADOUROS.has(i) ? [2.4, 3.6] : [0.7, 3.2]);
   });
 
   // --- Ondas decorativas no mar --------------------------------------------
@@ -243,6 +358,7 @@ export function construirAtlas(): AtlasConstruido {
     lago,
     ilhas: ilhasPts.map(({ id, d }) => ({ id, d })),
     territorios,
+    fronteiras,
     simbolos,
     estradas,
     rotasMaritimas,
