@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Cog, FlaskConical, Gem, HandCoins, Lock, Package, Search, Shield, Sword, TrendingDown, TrendingUp } from 'lucide-react';
+import { Cog, FlaskConical, Gem, HandCoins, Lock, Package, PackagePlus, Search, Shield, Sword, TrendingDown, TrendingUp } from 'lucide-react';
 import type { DetalheLoja, MercadoriaLoja } from '../../types/comercio';
 import { corRaridade, formatarLatao, rotuloEnum } from '../../utils/formatadores';
 import { EstadoVazio } from '../common/EstadoVazio';
 import { ModalVenderItem } from './ModalVenderItem';
+import { ModalComprarItem } from './ModalComprarItem';
+import { Button } from '../common/Button';
 
 /** Variação do preço de balcão em relação ao valor de referência do item. */
 const Variacao: React.FC<{ m: MercadoriaLoja }> = ({ m }) => {
@@ -34,7 +36,8 @@ const iconeDoTipo = (tipo: string) => {
 const CartaoMercadoria: React.FC<{ m: MercadoriaLoja; onVender: () => void }> = ({ m, onVender }) => {
   const [imagemQuebrada, setImagemQuebrada] = useState(false);
   const faltando = m.quantidade < m.demanda;
-  const esgotado = m.quantidade === 0;
+  // Mesa atrasada: a foto pode mostrar unidades que outra mesa já levou hoje
+  const esgotado = (m.disponivel ?? m.quantidade) === 0;
   return (
     <li className="rounded-xl bg-painel border border-linha overflow-hidden flex flex-col hover:border-linha-forte transition-colors">
       <div className="relative aspect-square bg-abismo flex items-center justify-center text-apagado [&>svg]:w-10 [&>svg]:h-10">
@@ -108,23 +111,36 @@ export const AbaEstoqueLoja: React.FC<AbaEstoqueLojaProps> = ({ detalhe, onAtual
   const [vendendo, setVendendo] = useState<MercadoriaLoja | null>(null);
   const [busca, setBusca] = useState('');
   const [soDisponiveis, setSoDisponiveis] = useState(false);
+  const [comprando, setComprando] = useState(false);
 
   const mercadorias = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    return detalhe.estoque.filter((m) => (!termo || m.nome.toLowerCase().includes(termo)) && (!soDisponiveis || m.quantidade > 0));
+    return detalhe.estoque.filter((m) => (!termo || m.nome.toLowerCase().includes(termo)) && (!soDisponiveis || (m.disponivel ?? m.quantidade) > 0));
   }, [detalhe.estoque, busca, soDisponiveis]);
+
+  const modalCompra = comprando && <ModalComprarItem detalhe={detalhe} onFechar={() => setComprando(false)} onComprado={onAtualizado} avisar={avisar} />;
+  const botaoCompra = (
+    <Button variant="outline" size="sm" icon={<PackagePlus className="w-3.5 h-3.5" />} onClick={() => setComprando(true)}>
+      Comprar de personagem
+    </Button>
+  );
 
   if (detalhe.estoque.length === 0) {
     return (
-      <EstadoVazio icone={<Package />} titulo="Loja sem mercadorias">
-        Abasteça a loja na aba Administrar.
-      </EstadoVazio>
+      <>
+        <EstadoVazio icone={<Package />} titulo="Loja sem mercadorias">
+          Abasteça a loja na aba Administrar ou compre de um personagem.
+        </EstadoVazio>
+        <div className="flex justify-center mt-3">{botaoCompra}</div>
+        {modalCompra}
+      </>
     );
   }
 
   return (
     <>
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+        {botaoCompra}
         <label className="relative block flex-1">
           <span className="sr-only">Buscar mercadoria</span>
           <Search className="w-4 h-4 text-nevoa absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
@@ -147,6 +163,7 @@ export const AbaEstoqueLoja: React.FC<AbaEstoqueLojaProps> = ({ detalhe, onAtual
       )}
 
       <ModalVenderItem lojaId={detalhe.loja.id} mercadoria={vendendo} onFechar={() => setVendendo(null)} onVendido={onAtualizado} avisar={avisar} />
+      {modalCompra}
     </>
   );
 };

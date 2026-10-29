@@ -3,13 +3,14 @@ import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, RefreshCw, Store } from 'lucide-react';
 import type { DetalheLoja, ResumoComercio } from '../../types/comercio';
 import { comercioService } from '../../services/comercioService';
-import { ControleTempo } from '../../components/comercio/ControleTempo';
 import { CabecalhoPagina } from '../../components/common/CabecalhoPagina';
 import { Button } from '../../components/common/Button';
 import { PainelAvisos, useAvisos } from '../../components/common/Avisos';
 import { ListaLojas } from '../../components/comercio/ListaLojas';
 import { PainelLoja } from '../../components/comercio/PainelLoja';
 import { GuiaComercio } from '../../components/comercio/GuiaComercio';
+import { ControleTempo } from '../../components/comercio/ControleTempo';
+import { useMesa } from '../../contexts/MesaContext';
 
 /** Aba de Comércio do Mestre: visão de todas as lojas e gestão de cada uma (?loja=ID). */
 export const ComercioPage: React.FC = () => {
@@ -20,32 +21,32 @@ export const ComercioPage: React.FC = () => {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const { avisos, avisar, fechar } = useAvisos();
+  const { mesaId, painel, erro: erroMesas } = useMesa();
+  const mesasProntas = painel != null || erroMesas != null;
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
     try {
-      if (lojaId) setDetalhe(await comercioService.loja(lojaId));
-      else setResumo(await comercioService.resumo());
+      if (lojaId) setDetalhe(await comercioService.loja(lojaId, mesaId));
+      else setResumo(await comercioService.resumo(mesaId));
     } catch (err: any) {
       setErro(err.message || 'Não foi possível carregar o comércio. Reinicie o servidor para aplicar a atualização.');
     } finally {
       setCarregando(false);
     }
-  }, [lojaId]);
+  }, [lojaId, mesaId]);
 
+  // Espera as mesas para já pedir pelo dia da mesa escolhida
   useEffect(() => {
-    carregar();
-  }, [carregar]);
+    if (mesasProntas) carregar();
+  }, [carregar, mesasProntas]);
 
   const abrirLoja = (id: number) => setSearchParams({ loja: String(id) });
   const voltar = () => {
     setDetalhe(null);
     setSearchParams({});
   };
-
-  const dia = (lojaId ? detalhe?.dia : resumo?.dia) ?? null;
-  const diaCampanha = (lojaId ? detalhe?.diaCampanha : resumo?.diaCampanha) ?? dia;
 
   return (
     <div className="space-y-6 text-left pb-16">
@@ -59,16 +60,9 @@ export const ComercioPage: React.FC = () => {
         }
         acoes={
           <>
-            {dia != null && (
-              <span className="text-xs font-cinzel text-nevoa" title={dia !== diaCampanha ? 'O mercado foi simulado à frente da campanha' : undefined}>
-                Dia {diaCampanha}
-                {dia !== diaCampanha && <span className="text-amber-300/90"> · mercado no dia {dia}</span>}
-              </span>
-            )}
             <Button variant="outline" size="sm" icon={<RefreshCw className="w-3.5 h-3.5" />} onClick={carregar} loading={carregando}>
               Atualizar
             </Button>
-            <ControleTempo diaCampanha={diaCampanha} diaMercado={dia} avisar={avisar} onPassou={() => carregar()} />
           </>
         }
       />
@@ -78,6 +72,8 @@ export const ComercioPage: React.FC = () => {
           <ArrowLeft className="w-4 h-4" /> Todas as lojas
         </button>
       )}
+
+      <ControleTempo avisar={avisar} onTempoMudou={carregar} />
 
       <GuiaComercio />
 

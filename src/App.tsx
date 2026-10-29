@@ -29,6 +29,7 @@ const GerenciarMundoPage = sobDemanda(() => import('./pages/master/GerenciarMund
 const ComercioPage = sobDemanda(() => import('./pages/master/ComercioPage'), 'ComercioPage');
 const ForjaPage = sobDemanda(() => import('./pages/master/ForjaPage'), 'ForjaPage');
 const DisseminacaoPage = sobDemanda(() => import('./pages/master/DisseminacaoPage'), 'DisseminacaoPage');
+const MesasPage = sobDemanda(() => import('./pages/master/MesasPage'), 'MesasPage');
 
 export function App() {
   return (
@@ -60,6 +61,7 @@ export function App() {
               <Route path="comercio" element={<ComercioPage />} />
               <Route path="forja" element={<ForjaPage />} />
               <Route path="disseminacao" element={<DisseminacaoPage />} />
+              <Route path="mesas" element={<MesasPage />} />
               <Route path="gerenciar" element={<GerenciarMundoPage />} />
             </Route>
 

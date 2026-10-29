@@ -1,3 +1,5 @@
+import type { RelogioMesa } from './mesa';
+
 /** Especialidades de loja (Lojas.TipoEstabelecimento no back-end). */
 export type TipoLoja = 'FORJA' | 'ALFAIATARIA' | 'LOJA_GERAL' | 'ALQUIMIA' | 'JOALHERIA' | 'TAVERNA' | 'BOTANICA';
 
@@ -22,10 +24,9 @@ export interface ResumoLoja {
 }
 
 export interface ResumoComercio {
-  /** Dia do mercado (livro-caixa, produção). */
   dia: number;
-  /** Dia jogado da campanha; menor que dia quando o mercado foi simulado à frente. */
-  diaCampanha?: number;
+  /** Relógios do mundo e da mesa escolhida (e se ela lê o passado). */
+  relogio?: RelogioMesa;
   diasDoResumo: number;
   totais: {
     lojas: number;
@@ -45,7 +46,12 @@ export interface MercadoriaLoja {
   descricao?: string | null;
   tipo: string;
   raridade: string;
+  /** No dia da mesa (snapshot, se ela estiver atrasada). */
   quantidade: number;
+  /** O que a mesa pode levar: min(foto do dia dela, estoque de hoje). */
+  disponivel?: number;
+  /** Estoque de agora, no mundo. */
+  quantidadeHoje?: number;
   demanda: number;
   precoBaseLatao: number;
   /** Preço dinâmico atual de venda no balcão. */
@@ -114,6 +120,13 @@ export interface OrdemComercio {
   /** Posição na oficina (usada para cancelar). */
   indice: number;
   insumosPorConta: boolean;
+  /** Encomenda de mesa: prazo no relógio dela e personagem que recebe. */
+  mesaId?: number | null;
+  mesaNome?: string | null;
+  diaConclusaoMesa?: number | null;
+  fichaId?: number | null;
+  /** A loja já terminou; a peça espera a mesa chegar ao prazo. */
+  prontaAguardando?: boolean;
   etapas: EtapaOrdem[];
 }
 
@@ -134,7 +147,7 @@ export interface MovimentoCaixa {
 
 export interface DetalheLoja {
   dia: number;
-  diaCampanha?: number;
+  relogio?: RelogioMesa;
   loja: ResumoLoja;
   estoque: MercadoriaLoja[];
   receitas: ReceitaComercio[];

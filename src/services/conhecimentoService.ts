@@ -5,8 +5,9 @@ export type AcaoCidade = 'RUMOR' | 'COMERCIO' | 'PRODUCAO' | 'REVOGAR' | 'LIMPAR
 
 /** Tela de Disseminação do Mestre (só o Mestre vê). */
 export const conhecimentoService = {
-  painel(): Promise<PainelDisseminacao> {
-    return requestApi('/api/mestre/conhecimentos');
+  /** Estágios no dia da mesa escolhida; sem mesa, no dia da campanha (mesa ativa mais à frente). */
+  painel(mesaId?: number | null): Promise<PainelDisseminacao> {
+    return requestApi('/api/mestre/conhecimentos', { params: { mesaId } });
   },
 
   conceder(dados: { tipo: 'TIPO_ARMA' | 'RECEITA'; tipoArmaId?: number; receitaId?: number; cidadeOrigemId: number } & ParametrosEspalhamento): Promise<{ id: number }> {

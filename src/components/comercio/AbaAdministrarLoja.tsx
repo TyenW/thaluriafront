@@ -3,6 +3,7 @@ import { Coins, Gauge, PackagePlus, Save, Target } from 'lucide-react';
 import type { DetalheLoja } from '../../types/comercio';
 import { adminService, type Registro } from '../../services/adminService';
 import { comercioService } from '../../services/comercioService';
+import { useMesa } from '../../contexts/MesaContext';
 import { formatarLatao } from '../../utils/formatadores';
 import { Button } from '../common/Button';
 
@@ -28,6 +29,7 @@ const Bloco: React.FC<{ titulo: string; icone: React.ReactNode; ajuda: string; c
 /** Ajustes diretos do Mestre: caixa, nível da oficina, estoque e procura. */
 export const AbaAdministrarLoja: React.FC<AbaAdministrarLojaProps> = ({ detalhe, onAtualizado, avisar }) => {
   const loja = detalhe.loja;
+  const { mesaId } = useMesa();
   const [caixaPO, setCaixaPO] = useState(String(loja.caixaLatao / 10_000));
   const [nivel, setNivel] = useState(loja.nivel);
   const [catalogo, setCatalogo] = useState<Registro[]>([]);
@@ -79,7 +81,7 @@ export const AbaAdministrarLoja: React.FC<AbaAdministrarLojaProps> = ({ detalhe,
             icon={<Save className="w-3.5 h-3.5" />}
             loading={ocupado === 'caixa'}
             disabled={caixaLatao < 0 || caixaLatao === loja.caixaLatao}
-            onClick={() => executar('caixa', () => comercioService.ajustar(loja.id, { acao: 'CAIXA', valorLatao: caixaLatao }), `Caixa definido em ${formatarLatao(caixaLatao)}.`)}
+            onClick={() => executar('caixa', () => comercioService.ajustar(loja.id, { acao: 'CAIXA', valorLatao: caixaLatao }, mesaId), `Caixa definido em ${formatarLatao(caixaLatao)}.`)}
           >
             Definir
           </Button>
@@ -101,7 +103,7 @@ export const AbaAdministrarLoja: React.FC<AbaAdministrarLojaProps> = ({ detalhe,
             icon={<Save className="w-3.5 h-3.5" />}
             loading={ocupado === 'nivel'}
             disabled={nivel === loja.nivel}
-            onClick={() => executar('nivel', () => comercioService.ajustar(loja.id, { acao: 'NIVEL', nivel }), `Oficina agora é nível ${nivel}.`)}
+            onClick={() => executar('nivel', () => comercioService.ajustar(loja.id, { acao: 'NIVEL', nivel }, mesaId), `Oficina agora é nível ${nivel}.`)}
           >
             Salvar
           </Button>
@@ -131,7 +133,7 @@ export const AbaAdministrarLoja: React.FC<AbaAdministrarLojaProps> = ({ detalhe,
                   loading={ocupado === 'estoque'}
                   disabled={delta === 0}
                   onClick={() =>
-                    executar('estoque', () => comercioService.ajustar(loja.id, { acao: 'ESTOQUE', itemId: Number(itemId), delta }), `${delta > 0 ? 'Abastecido' : 'Retirado'}: ${Math.abs(delta)}× ${itemEscolhido.nome}.`)
+                    executar('estoque', () => comercioService.ajustar(loja.id, { acao: 'ESTOQUE', itemId: Number(itemId), delta }, mesaId), `${delta > 0 ? 'Abastecido' : 'Retirado'}: ${Math.abs(delta)}× ${itemEscolhido.nome}.`)
                   }
                 >
                   Aplicar
@@ -150,7 +152,7 @@ export const AbaAdministrarLoja: React.FC<AbaAdministrarLojaProps> = ({ detalhe,
                   icon={<Target className="w-3.5 h-3.5" />}
                   loading={ocupado === 'demanda'}
                   onClick={() =>
-                    executar('demanda', () => comercioService.ajustar(loja.id, { acao: 'DEMANDA', itemId: Number(itemId), demanda }), `Procura de ${itemEscolhido.nome} definida em ${demanda}.`)
+                    executar('demanda', () => comercioService.ajustar(loja.id, { acao: 'DEMANDA', itemId: Number(itemId), demanda }, mesaId), `Procura de ${itemEscolhido.nome} definida em ${demanda}.`)
                   }
                 >
                   Definir

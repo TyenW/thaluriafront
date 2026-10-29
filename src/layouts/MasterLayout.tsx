@@ -3,6 +3,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Navbar } from '../components/layout/Navbar';
 import { CarregandoPagina } from '../components/common/CarregandoPagina';
+import { MesaProvider } from '../contexts/MesaContext';
 import { Loader2, Crown } from 'lucide-react';
 
 export const MasterLayout: React.FC = () => {
@@ -38,9 +39,12 @@ export const MasterLayout: React.FC = () => {
       </div>
       <Navbar />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <Suspense fallback={<CarregandoPagina />}>
-          <Outlet />
-        </Suspense>
+        {/* Mesa escolhida e relógios: usados pelo comércio, disseminação e controle do tempo */}
+        <MesaProvider>
+          <Suspense fallback={<CarregandoPagina />}>
+            <Outlet />
+          </Suspense>
+        </MesaProvider>
       </main>
       <footer className="py-6 border-t border-linha bg-abismo/80 text-center text-xs text-apagado font-sans-clean">
         <p className="font-cinzel tracking-wider text-amber-500/60 mb-1">

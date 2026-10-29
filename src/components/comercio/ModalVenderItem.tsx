@@ -5,6 +5,7 @@ import type { FichaPersonagem } from '../../types/ficha';
 import { fichasService } from '../../services/fichasService';
 import { comercioService } from '../../services/comercioService';
 import { formatarLatao } from '../../utils/formatadores';
+import { useMesa } from '../../contexts/MesaContext';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 
@@ -25,6 +26,7 @@ export const ModalVenderItem: React.FC<ModalVenderItemProps> = ({ lojaId, mercad
   const [precoPO, setPrecoPO] = useState('');
   const [cobrar, setCobrar] = useState(true);
   const [enviando, setEnviando] = useState(false);
+  const { mesa, mesaId } = useMesa();
 
   useEffect(() => {
     if (!mercadoria) return;
@@ -48,13 +50,15 @@ export const ModalVenderItem: React.FC<ModalVenderItemProps> = ({ lojaId, mercad
   const ficha = fichas.find((f) => String(f.id) === fichaId);
   const saldo = ficha?.carteiraLatao ?? 0;
   const semSaldo = cobrar && total > saldo;
-  const qtdValida = quantidade >= 1 && quantidade <= mercadoria.quantidade;
+  // Mesa atrasada: vê a foto do dia dela, mas só leva o que ainda existe hoje
+  const maximo = mercadoria.disponivel ?? mercadoria.quantidade;
+  const qtdValida = quantidade >= 1 && quantidade <= maximo;
 
   const vender = async () => {
     if (!ficha) return;
     setEnviando(true);
     try {
-      const r = await comercioService.vender({ lojaId, itemId: mercadoria.itemId, fichaId: ficha.id, quantidade, precoUnitarioLatao, cobrar });
+      const r = await comercioService.vender({ lojaId, itemId: mercadoria.itemId, fichaId: ficha.id, quantidade, precoUnitarioLatao, cobrar, mesaId });
       avisar('sucesso', cobrar ? `${quantidade}× ${mercadoria.nome} vendido a ${ficha.nome} por ${formatarLatao(r.totalLatao)}.` : `${quantidade}× ${mercadoria.nome} entregue a ${ficha.nome}.`);
       onVendido(r.detalhe);
       onFechar();
@@ -85,14 +89,14 @@ export const ModalVenderItem: React.FC<ModalVenderItemProps> = ({ lojaId, mercad
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="venda-qtd" className="block text-[11px] font-cinzel font-semibold uppercase tracking-wider text-ouro/90 mb-1">
-              Quantidade (máx. {mercadoria.quantidade})
+              Quantidade (máx. {maximo})
             </label>
             <input
               id="venda-qtd"
               type="number"
               inputMode="numeric"
               min={1}
-              max={mercadoria.quantidade}
+              max={maximo}
               value={quantidade}
               onChange={(e) => setQuantidade(Math.floor(Number(e.target.value) || 1))}
               aria-invalid={!qtdValida}
@@ -113,8 +117,14 @@ export const ModalVenderItem: React.FC<ModalVenderItemProps> = ({ lojaId, mercad
             />
           </div>
         </div>
+        {mesa?.noPassado && (
+          <p className="text-[11px] text-amber-200 p-2 rounded-md bg-amber-950/30 border border-amber-500/30">
+            Mesa {mesa.nome} no dia {mesa.dia}: preço desse dia. A foto mostra {mercadoria.quantidade}, mas hoje a loja tem {mercadoria.quantidadeHoje ?? mercadoria.quantidade}
+            {maximo === 0 && ' — outra mesa já levou tudo, narre que acabou'}.
+          </p>
+        )}
         <p className="text-[11px] text-nevoa">
-          Balcão hoje: <strong className="text-texto-2">{formatarLatao(mercadoria.precoVendaLatao)}</strong> · referência{' '}
+          {mesa?.noPassado ? `Balcão no dia ${mesa.dia}:` : 'Balcão hoje:'} <strong className="text-texto-2">{formatarLatao(mercadoria.precoVendaLatao)}</strong> · referência{' '}
           <strong className="text-texto-2">{formatarLatao(mercadoria.precoBaseLatao)}</strong> · a loja paga {formatarLatao(mercadoria.precoCompraLatao)} a fornecedores
         </p>
 

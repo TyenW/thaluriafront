@@ -17,17 +17,20 @@ import {
   RefreshCw,
   Trash2,
   AlertTriangle,
-  Gift
+  Gift,
+  ArrowRightLeft
 } from 'lucide-react';
-import { mundoService } from '../../services/mundoService';
-import { ControleTempo } from '../../components/comercio/ControleTempo';
 import { fichasService } from '../../services/fichasService';
 import type { FichaPersonagem } from '../../types/ficha';
+import type { FichaNaMesa } from '../../types/mesa';
+import { useMesa } from '../../contexts/MesaContext';
+import { ControleTempo } from '../../components/comercio/ControleTempo';
+import { ModalTrocarMesa } from '../../components/mesas/ModalTrocarMesa';
 
 export const PainelMestrePage: React.FC = () => {
   const { avisos, avisar, fechar: fecharAviso } = useAvisos();
-  const [diaCampanha, setDiaCampanha] = useState<number | null>(null);
-  const [diaMercado, setDiaMercado] = useState<number | null>(null);
+  const { painel: painelMesas } = useMesa();
+  const [trocandoMesa, setTrocandoMesa] = useState<FichaNaMesa | null>(null);
   const [fichas, setFichas] = useState<FichaPersonagem[]>([]);
   const [loadingFichas, setLoadingFichas] = useState(true);
   const [buscaFicha, setBuscaFicha] = useState('');
@@ -60,18 +63,12 @@ export const PainelMestrePage: React.FC = () => {
   };
 
   useEffect(() => {
-    const carregar = async () => {
-      try {
-        const conteudo = await mundoService.obterConteudoVisivel('MESTRE');
-        // Servidor antigo mandava o dia da campanha em diaMercado
-        setDiaCampanha(conteudo.diaCampanha ?? conteudo.diaMercado ?? 1);
-        setDiaMercado(conteudo.diaMercado ?? null);
-      } catch {}
-    };
-    carregar();
     carregarFichas();
   }, []);
 
+  /** Mesa e relógio de cada ficha (vêm do controle de mesas). */
+  const naMesa = (id: number) => painelMesas?.fichas.find((x) => x.id === id) ?? null;
+  const nomeMesa = (id: number | null | undefined) => painelMesas?.mesas.find((m) => m.id === id)?.nome ?? null;
 
   return (
     <div className="space-y-8 text-left">
@@ -82,10 +79,7 @@ export const PainelMestrePage: React.FC = () => {
               <Crown className="w-3 h-3 text-amber-300" />
               <span>Painel do Mestre</span>
             </Badge>
-            {diaCampanha != null && <Badge variant="gold">Dia de Campanha #{diaCampanha}</Badge>}
-            {diaCampanha != null && diaMercado != null && diaMercado > diaCampanha && (
-              <Badge variant="cyan">Mercado no dia {diaMercado}</Badge>
-            )}
+            {painelMesas && <Badge variant="gold">Dia de Campanha #{painelMesas.diaCampanha}</Badge>}
           </div>
           <h1 className="text-2xl sm:text-3xl font-cinzel font-bold text-pergaminho tracking-wide">
             Câmara de Controle da Campanha
@@ -95,16 +89,10 @@ export const PainelMestrePage: React.FC = () => {
           </p>
         </div>
 
-        <ControleTempo
-          diaCampanha={diaCampanha}
-          diaMercado={diaMercado}
-          avisar={avisar}
-          onPassou={(r) => {
-            setDiaCampanha(r.diaAtual);
-            setDiaMercado(r.diaMercado);
-          }}
-        />
       </div>
+
+      {/* Relógio por mesa: o mundo anda junto com a mesa mais à frente */}
+      <ControleTempo avisar={avisar} />
 
       {/* Grid de Ferramentas Principais do Mestre */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -189,15 +177,15 @@ export const PainelMestrePage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 min-w-0 sm:flex-none">
+          <div className="flex items-center gap-2">
+            <div className="relative">
               <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Buscar personagem ou raça..."
                 value={buscaFicha}
                 onChange={(e) => setBuscaFicha(e.target.value)}
-                className="bg-abismo text-xs text-pergaminho rounded-lg border border-linha-forte pl-8 pr-3 py-1.5 outline-none focus:border-amber-400 w-full sm:w-52 font-sans-clean"
+                className="bg-abismo text-xs text-pergaminho rounded-lg border border-linha-forte pl-8 pr-3 py-1.5 outline-none focus:border-amber-400 w-52 font-sans-clean"
               />
             </div>
 
@@ -237,6 +225,12 @@ export const PainelMestrePage: React.FC = () => {
                       </span>
                       <Badge variant="gold" size="sm">{f.raca}</Badge>
                     </div>
+                    {painelMesas && (
+                      <span className="block text-[10px] font-mono text-nevoa">
+                        {nomeMesa(naMesa(f.id)?.mesaId) ? `Mesa ${nomeMesa(naMesa(f.id)?.mesaId)}` : 'Fora de jogo'}
+                        {naMesa(f.id)?.dia != null && ` · dia ${naMesa(f.id)?.dia}, ${String(naMesa(f.id)?.hora ?? 0).padStart(2, '0')}h`}
+                      </span>
+                    )}
 
                     <div className="flex items-center gap-3">
                       {f.imagemUrl ? (
@@ -294,6 +288,17 @@ export const PainelMestrePage: React.FC = () => {
                     >
                       <Gift className="w-3.5 h-3.5" />
                     </Link>
+                    {naMesa(f.id) && (
+                      <button
+                        type="button"
+                        onClick={() => setTrocandoMesa(naMesa(f.id))}
+                        className="p-2 rounded-md bg-purple-950/30 hover:bg-purple-900/50 border border-purple-700/40 hover:border-purple-400 text-purple-300 transition-all cursor-pointer"
+                        title={`Trocar ${f.nome} de mesa`}
+                        aria-label={`Trocar ${f.nome} de mesa`}
+                      >
+                        <ArrowRightLeft className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setFichaParaExcluir(f)}
@@ -334,7 +339,7 @@ export const PainelMestrePage: React.FC = () => {
       </Card>
       {/* Modal de Confirmação de Exclusão do Mestre */}
       {fichaParaExcluir && (
-        <div className="fixed inset-0 m-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-md bg-painel border border-red-500/50 rounded-2xl shadow-2xl overflow-hidden p-6 text-left">
             <div className="flex items-center gap-3 text-red-400 mb-4">
               <AlertTriangle className="w-6 h-6 shrink-0" />
@@ -368,6 +373,7 @@ export const PainelMestrePage: React.FC = () => {
         </div>
       )}
 
+      {trocandoMesa && <ModalTrocarMesa ficha={trocandoMesa} onFechar={() => setTrocandoMesa(null)} avisar={avisar} />}
       <PainelAvisos avisos={avisos} onFechar={fecharAviso} />
     </div>
   );

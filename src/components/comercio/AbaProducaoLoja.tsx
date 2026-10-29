@@ -9,6 +9,9 @@ import { EstadoVazio } from '../common/EstadoVazio';
 import { Modal } from '../common/Modal';
 import { ModalConfirmacao } from '../common/ModalConfirmacao';
 import { ModalEncomendarArma } from './ModalEncomendarArma';
+import { CampoEncomendaPersonagem } from './CampoEncomendaPersonagem';
+import { descreverEntregas } from '../../services/mesasService';
+import { useMesa } from '../../contexts/MesaContext';
 import type { OrdemComercio } from '../../types/comercio';
 
 const ModalProduzir: React.FC<{
@@ -21,15 +24,25 @@ const ModalProduzir: React.FC<{
   const [lotes, setLotes] = useState(1);
   const [porConta, setPorConta] = useState(!receita.temInsumos);
   const [imediato, setImediato] = useState(false);
+  const [fichaId, setFichaId] = useState<number | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const { mesaId } = useMesa();
   const total = receita.quantidadeResultado * lotes;
 
   const produzir = async () => {
     setEnviando(true);
     try {
-      const d = await comercioService.produzir({ lojaId, receitaId: receita.id, lotes, insumosPorConta: porConta, imediato });
-      avisar('sucesso', imediato ? `${total}× ${receita.resultadoNome} já está no estoque.` : `Ordem aberta: ${total}× ${receita.resultadoNome} em ${receita.dias} dia(s).`);
-      onFeito(d);
+      const r = await comercioService.produzir({ lojaId, receitaId: receita.id, lotes, insumosPorConta: porConta, imediato, mesaId, fichaId });
+      const entregas = descreverEntregas(r.entregas);
+      avisar(
+        'sucesso',
+        entregas
+          ? `Pronto e entregue: ${entregas}.`
+          : imediato
+            ? `${total}× ${receita.resultadoNome} já está no estoque.`
+            : `Ordem aberta: ${total}× ${receita.resultadoNome} em ${receita.dias} dia(s).`
+      );
+      onFeito(r.detalhe);
       onFechar();
     } catch (err: any) {
       avisar('erro', err.message || 'Não foi possível abrir a ordem.');
@@ -72,6 +85,8 @@ const ModalProduzir: React.FC<{
           <p className="text-nevoa pt-1">Mão de obra: {formatarLatao(receita.maoDeObraLatao * lotes)}</p>
         </div>
 
+        <CampoEncomendaPersonagem id="producao-ficha" fichaId={fichaId} onAlterar={setFichaId} dias={imediato ? 0 : receita.dias} />
+
         <label className="flex items-start gap-2.5 p-3 rounded-lg border border-linha bg-abismo/50 cursor-pointer">
           <input type="checkbox" checked={porConta} onChange={(e) => setPorConta(e.target.checked)} className="mt-0.5 accent-amber-500 w-4 h-4" />
           <span className="text-xs text-texto-2">
@@ -112,12 +127,14 @@ export const AbaProducaoLoja: React.FC<AbaProducaoLojaProps> = ({ detalhe, onAtu
   const [encomendando, setEncomendando] = useState(false);
   const [cancelando, setCancelando] = useState<OrdemComercio | null>(null);
   const [processando, setProcessando] = useState(false);
+  const { mesaId, painel } = useMesa();
+  const nomeFicha = (id: number | null | undefined) => painel?.fichas.find((f) => f.id === id)?.nome ?? `ficha #${id}`;
 
   const cancelar = async () => {
     if (!cancelando) return;
     setProcessando(true);
     try {
-      onAtualizado(await comercioService.cancelar(detalhe.loja.id, cancelando.indice));
+      onAtualizado(await comercioService.cancelar(detalhe.loja.id, cancelando.indice, mesaId));
       avisar('sucesso', 'Ordem cancelada. Peças prontas e materiais não usados voltaram à prateleira.');
     } catch (err: any) {
       avisar('erro', err.message || 'Não foi possível cancelar.');
@@ -156,8 +173,23 @@ export const AbaProducaoLoja: React.FC<AbaProducaoLojaProps> = ({ detalhe, onAtu
                   <strong className="font-cinzel text-pergaminho">
                     {o.quantidade}× {o.resultadoNome}
                   </strong>
+                  {o.mesaId != null && (
+                    <span title="Encomenda de mesa: o prazo do jogador conta no relógio da mesa">
+                      <Badge variant="purple">
+                        Mesa {o.mesaNome ?? `#${o.mesaId}`}
+                        {o.fichaId != null && ` · para ${nomeFicha(o.fichaId)}`}
+                      </Badge>
+                    </span>
+                  )}
                   <span className="inline-flex items-center gap-1 text-nevoa sm:ml-auto">
-                    <Clock className="w-3.5 h-3.5" /> {faltam === 0 ? 'fica pronto na virada do dia' : `pronto no dia ${o.diaConclusao} (faltam ${faltam})`}
+                    <Clock className="w-3.5 h-3.5" />
+                    {o.prontaAguardando
+                      ? `pronta, reservada até a mesa chegar ao dia ${o.diaConclusaoMesa}`
+                      : o.mesaId != null
+                        ? `loja termina no dia ${o.diaConclusao} do mundo · entrega no dia ${o.diaConclusaoMesa} da mesa`
+                        : faltam === 0
+                          ? 'fica pronto na virada do dia'
+                          : `pronto no dia ${o.diaConclusao} (faltam ${faltam})`}
                   </span>
                   <button
                     type="button"

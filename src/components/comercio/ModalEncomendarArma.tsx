@@ -7,6 +7,9 @@ import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
 import { PreviaArma } from '../forja/PreviaArma';
 import { SeletorMateriais } from '../forja/SeletorMateriais';
+import { CampoEncomendaPersonagem } from './CampoEncomendaPersonagem';
+import { descreverEntregas } from '../../services/mesasService';
+import { useMesa } from '../../contexts/MesaContext';
 
 export interface ModalEncomendarArmaProps {
   detalhe: DetalheLoja;
@@ -26,6 +29,8 @@ export const ModalEncomendarArma: React.FC<ModalEncomendarArmaProps> = ({ detalh
   const [escolhas, setEscolhas] = useState<EscolhaMaterial[]>([]);
   const [porConta, setPorConta] = useState(false);
   const [imediato, setImediato] = useState(false);
+  const [fichaId, setFichaId] = useState<number | null>(null);
+  const { mesaId } = useMesa();
   const [arma, setArma] = useState<ArmaCalculada | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -49,9 +54,10 @@ export const ModalEncomendarArma: React.FC<ModalEncomendarArmaProps> = ({ detalh
     if (!tipoArmaId) return;
     setEnviando(true);
     try {
-      const d = await forjaService.encomendar({ lojaId: detalhe.loja.id, tipoArmaId, materiais: escolhas, insumosPorConta: porConta, imediato });
-      avisar('sucesso', imediato ? `${arma?.nome ?? 'A arma'} já está no estoque.` : 'Encomenda aberta na oficina. As peças ficam reservadas até a montagem.');
-      onFeito(d);
+      const r = await forjaService.encomendar({ lojaId: detalhe.loja.id, tipoArmaId, materiais: escolhas, insumosPorConta: porConta, imediato, mesaId, fichaId });
+      const entregas = descreverEntregas(r.entregas);
+      avisar('sucesso', entregas ? `Forjada e entregue: ${entregas}.` : imediato ? `${arma?.nome ?? 'A arma'} já está no estoque.` : 'Encomenda aberta na oficina. As peças ficam reservadas até a montagem.');
+      onFeito(r.detalhe);
       onFechar();
     } catch (err: any) {
       avisar('erro', err.message || 'Não foi possível abrir a encomenda.');
@@ -100,6 +106,8 @@ export const ModalEncomendarArma: React.FC<ModalEncomendarArmaProps> = ({ detalh
               </select>
             </div>
             {molde && <SeletorMateriais molde={molde} materiais={painel.materiais} escolhas={escolhas} onAlterar={setEscolhas} estoque={porConta ? undefined : estoque} />}
+
+            <CampoEncomendaPersonagem id="enc-ficha" fichaId={fichaId} onAlterar={setFichaId} dias={imediato || !arma ? 0 : Math.max(1, Math.ceil(arma.tempoHoras / 24))} />
 
             <label className="flex items-start gap-2.5 p-3 rounded-lg border border-linha bg-abismo/50 cursor-pointer">
               <input type="checkbox" checked={porConta} onChange={(e) => setPorConta(e.target.checked)} className="mt-0.5 accent-amber-500 w-4 h-4" />

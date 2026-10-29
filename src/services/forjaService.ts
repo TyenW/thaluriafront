@@ -1,4 +1,5 @@
 import { requestApi } from './api';
+import type { EntregaEncomenda } from '../types/mesa';
 import type { DetalheLoja } from '../types/comercio';
 import type { ArmaCalculada, EscolhaMaterial, MoldeArma, PainelForja, TipoArma } from '../types/forja';
 
@@ -69,11 +70,20 @@ export const forjaService = {
   },
 
   /** Encomenda sob medida numa loja: o Mestre escolhe o material de cada parte. */
-  async encomendar(dados: { lojaId: number; tipoArmaId: number; materiais: EscolhaMaterial[]; insumosPorConta: boolean; imediato: boolean }): Promise<DetalheLoja> {
-    const r = await requestApi<{ detalhe: DetalheLoja }>('/api/mestre/comercio/encomendar-arma', {
+  async encomendar(dados: {
+    lojaId: number;
+    tipoArmaId: number;
+    materiais: EscolhaMaterial[];
+    insumosPorConta: boolean;
+    imediato: boolean;
+    /** Mesa escolhida; com fichaId, a arma é encomenda do personagem (prazo no relógio da mesa). */
+    mesaId: number | null;
+    fichaId?: number | null;
+  }): Promise<{ detalhe: DetalheLoja; entregas: EntregaEncomenda[] }> {
+    const r = await requestApi<{ detalhe: DetalheLoja; entregas?: EntregaEncomenda[] }>('/api/mestre/comercio/encomendar-arma', {
       method: 'POST',
       body: { ...dados, materiais: serializarMateriais(dados.materiais) },
     });
-    return r.detalhe;
+    return { detalhe: r.detalhe, entregas: r.entregas ?? [] };
   },
 };

@@ -6,6 +6,7 @@ import {
   Store,
   Anvil,
   Waypoints,
+  Dices,
   Shield,
   Map as MapIcon,
   BookOpen,
@@ -52,6 +53,7 @@ const playerNavItems: NavItem[] = [
 
 const masterNavItems: NavItem[] = [
   { label: 'Painel', path: '/mestre', icon: <Crown className="w-4 h-4" /> },
+  { label: 'Mesas', path: '/mestre/mesas', icon: <Dices className="w-4 h-4" /> },
   { label: 'Sessões', path: '/mestre/sessoes', icon: <UserCheck className="w-4 h-4" />, highlight: true },
   { label: 'Fog-of-War', path: '/mestre/mundo', icon: <Globe className="w-4 h-4" /> },
   { label: 'Mapa', path: '/mapa', icon: <MapIcon className="w-4 h-4" /> },

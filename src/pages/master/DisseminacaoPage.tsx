@@ -12,6 +12,7 @@ import { ModalConfirmacao } from '../../components/common/ModalConfirmacao';
 import { PainelAvisos, useAvisos } from '../../components/common/Avisos';
 import { SecaoRecolhivel } from '../../components/common/SecaoRecolhivel';
 import { MapaEditor } from '../../components/admin/MapaEditor';
+import { useMesa } from '../../contexts/MesaContext';
 
 const ROTULO_ESTAGIO: Record<EstagioConhecimento, string> = { NENHUM: 'Desconhecido', RUMOR: 'Rumor', COMERCIO: 'Comércio', PRODUCAO: 'Produção' };
 const COR_ESTAGIO: Record<EstagioConhecimento, string> = { NENHUM: '#8a8170', RUMOR: '#c9a227', COMERCIO: '#2f7d9b', PRODUCAO: '#2e8b57' };
@@ -175,22 +176,25 @@ export const DisseminacaoPage: React.FC = () => {
   const [cidadeFoco, setCidadeFoco] = useState<number | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const { avisos, avisar, fechar } = useAvisos();
+  const { mesa, mesaId, painel: painelMesas, erro: erroMesas } = useMesa();
+  const mesasProntas = painelMesas != null || erroMesas != null;
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
-      setPainel(await conhecimentoService.painel());
+      setPainel(await conhecimentoService.painel(mesaId));
       setErro(null);
     } catch (err: any) {
       setErro(err.message || 'Não foi possível carregar. Reinicie o servidor para aplicar a atualização.');
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [mesaId]);
 
+  // Espera as mesas para já pedir pelo dia da mesa escolhida
   useEffect(() => {
-    carregar();
-  }, [carregar]);
+    if (mesasProntas) carregar();
+  }, [carregar, mesasProntas]);
 
   const selecionadoId = Number(searchParams.get('k')) || painel?.conhecimentos[0]?.id || null;
   const k = painel?.conhecimentos.find((x) => x.id === selecionadoId) ?? null;
@@ -239,7 +243,15 @@ export const DisseminacaoPage: React.FC = () => {
         descricao="Quando uma cidade adquire um saber novo, as outras levam tempo para ouvir falar, comercializar e aprender a fazer. Só o Mestre vê esta tela."
         acoes={
           <>
-            {painel && <span className="text-xs font-cinzel text-nevoa">Dia {painel.dia}</span>}
+            {painel && (
+              <span
+                className="text-xs font-cinzel text-nevoa"
+                title="Os estágios são os do dia da mesa escolhida. Conceder, pausar e adiantar valem no dia da campanha (a mesa ativa mais à frente)."
+              >
+                Dia {painel.dia}
+                {mesa ? ` · mesa ${mesa.nome}` : ''}
+              </span>
+            )}
             <Button variant="outline" size="sm" icon={<RefreshCw className="w-3.5 h-3.5" />} onClick={carregar} loading={carregando}>
               Atualizar
             </Button>
